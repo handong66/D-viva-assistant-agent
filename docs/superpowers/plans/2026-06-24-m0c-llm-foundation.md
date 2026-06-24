@@ -163,22 +163,26 @@ git commit -m "feat(m0c): LlmClient/LlmTransport interfaces + LlmDisabledError"
 
 **Files:** Create `src/lib/llm/model-registry.ts`, `src/lib/llm/model-registry.test.ts`
 
+> **No hardcoded model names (AGENTS red line, Codex F3).** Model IDs live ONLY in env (`.env.example` ships sane values). `resolveModel` throws clearly when AI is enabled but a role's model env is unset — it never silently defaults to a provider.
+
 - [ ] **Step 1: Write the failing test**
 
 Create `src/lib/llm/model-registry.test.ts`:
 ```ts
 import { describe, it, expect } from "vitest";
-import { resolveModel } from "./model-registry";
+import { resolveModel, MissingModelEnvError } from "./model-registry";
 
 describe("resolveModel", () => {
-  it("returns env override when set", () => {
+  it("returns the env value for the role", () => {
     expect(resolveModel("hard", { VIVA_MODEL_HARD: "openai/gpt-x" })).toBe("openai/gpt-x");
+    expect(resolveModel("default", { VIVA_MODEL_DEFAULT: "anthropic/claude-sonnet-4.6" })).toBe(
+      "anthropic/claude-sonnet-4.6",
+    );
   });
 
-  it("falls back to a sane default per role", () => {
-    expect(resolveModel("hard", {})).toBe("anthropic/claude-opus-4.8");
-    expect(resolveModel("default", {})).toBe("anthropic/claude-sonnet-4.6");
-    expect(resolveModel("fast", {})).toBe("anthropic/claude-sonnet-4.6");
+  it("throws a clear error when the role's model env is unset", () => {
+    expect(() => resolveModel("fast", {})).toThrow(MissingModelEnvError);
+    expect(() => resolveModel("fast", {})).toThrow(/VIVA_MODEL_FAST/);
   });
 });
 ```
@@ -191,25 +195,28 @@ Create `src/lib/llm/model-registry.ts`:
 ```ts
 import type { LlmRole } from "./types";
 
-// Defaults use AI Gateway "provider/model" strings. Override per role via env.
-// Confirmed current IDs as of 2026-06-24; change freely via env without code edits.
-const DEFAULTS: Record<LlmRole, string> = {
-  fast: "anthropic/claude-sonnet-4.6",
-  default: "anthropic/claude-sonnet-4.6",
-  hard: "anthropic/claude-opus-4.8",
-};
-
 const ENV_KEY: Record<LlmRole, string> = {
   fast: "VIVA_MODEL_FAST",
   default: "VIVA_MODEL_DEFAULT",
   hard: "VIVA_MODEL_HARD",
 };
 
+export class MissingModelEnvError extends Error {
+  constructor(envKey: string) {
+    super(`Model env ${envKey} is not set. Set it (see .env.example) or disable AI.`);
+    this.name = "MissingModelEnvError";
+  }
+}
+
+/** Resolve a role to an AI Gateway "provider/model" string from env. No hardcoded defaults. */
 export function resolveModel(
   role: LlmRole,
   env: Record<string, string | undefined> = process.env,
 ): string {
-  return env[ENV_KEY[role]] || DEFAULTS[role];
+  const key = ENV_KEY[role];
+  const value = env[key];
+  if (!value) throw new MissingModelEnvError(key);
+  return value;
 }
 ```
 
@@ -364,6 +371,16 @@ describe("createLlmClient", () => {
     await expect(client.generateText({ role: "fast", purpose: "p", prompt: "hi" })).rejects.toThrow(/boom/);
     expect(logCall).toHaveBeenCalledWith(expect.objectContaining({ status: "error" }));
   });
+
+  it("times out a slow call and logs status=timeout", async () => {
+    const logCall = vi.fn();
+    const client = createLlmClient(
+      fakeTransport({ text: () => new Promise<string>(() => {}) }), // never resolves
+      { resolveModel: () => "anthropic/x", logCall, timeoutMs: 10 },
+    );
+    await expect(client.generateText({ role: "fast", purpose: "p", prompt: "hi" })).rejects.toThrow(/timed out/i);
+    expect(logCall).toHaveBeenCalledWith(expect.objectContaining({ status: "timeout" }));
+  });
 });
 ```
 
@@ -388,13 +405,34 @@ export type AiCallLog = {
 export type ClientDeps = {
   resolveModel: (role: LlmRole) => string;
   logCall: (entry: AiCallLog) => void;
+  /** Per-call timeout; defaults to 25s (spec §8). */
+  timeoutMs?: number;
 };
 
+export class LlmTimeoutError extends Error {
+  constructor(ms: number) {
+    super(`LLM call timed out after ${ms}ms`);
+    this.name = "LlmTimeoutError";
+  }
+}
+
 function providerOf(model: string): string {
-  return model.includes("/") ? model.split("/")[0]! : "unknown";
+  const slash = model.indexOf("/");
+  return slash > 0 ? model.slice(0, slash) : "unknown";
+}
+
+function withTimeout<R>(p: Promise<R>, ms: number): Promise<R> {
+  return new Promise<R>((resolve, reject) => {
+    const t = setTimeout(() => reject(new LlmTimeoutError(ms)), ms);
+    p.then(
+      (v) => { clearTimeout(t); resolve(v); },
+      (e) => { clearTimeout(t); reject(e); },
+    );
+  });
 }
 
 export function createLlmClient(transport: LlmTransport, deps: ClientDeps): LlmClient {
+  const timeoutMs = deps.timeoutMs ?? 25_000;
   async function run<R>(
     role: LlmRole,
     purpose: string,
@@ -405,13 +443,14 @@ export function createLlmClient(transport: LlmTransport, deps: ClientDeps): LlmC
     const provider = providerOf(model);
     const started = Date.now();
     try {
-      const result = await op(model);
+      const result = await withTimeout(op(model), timeoutMs);
       deps.logCall({ thesisId, purpose, provider, model, latencyMs: Date.now() - started, status: "ok" });
       return result;
     } catch (err) {
+      const status = err instanceof LlmTimeoutError ? "timeout" : "error";
       deps.logCall({
         thesisId, purpose, provider, model, latencyMs: Date.now() - started,
-        status: "error", error: err instanceof Error ? err.message : String(err),
+        status, error: err instanceof Error ? err.message : String(err),
       });
       throw err;
     }
@@ -469,12 +508,21 @@ describe("logAiCall", () => {
 
 - [ ] **Step 2: Run test — FAIL** (`logAiCall` not exported).
 
-- [ ] **Step 3: Implement** — append to `src/db/repository.ts`:
+- [ ] **Step 3: Implement** — append to `src/db/repository.ts` (the DB layer owns its own input type — it must NOT import from `lib/llm`, Codex F5):
 ```ts
 import { randomUUID } from "node:crypto";
-import type { AiCallLog } from "../lib/llm/client";
 
-export function logAiCall(db: DB, entry: AiCallLog): void {
+export type AiCallLogInput = {
+  thesisId?: string;
+  purpose: string;
+  provider: string;
+  model: string;
+  latencyMs: number;
+  status: "ok" | "error" | "timeout";
+  error?: string;
+};
+
+export function logAiCall(db: DB, entry: AiCallLogInput): void {
   db.prepare(
     `INSERT INTO ai_call_log (id, thesis_id, purpose, provider, model, latency_ms, status, error)
      VALUES (@id, @thesis_id, @purpose, @provider, @model, @latency_ms, @status, @error)`,
@@ -490,7 +538,7 @@ export function logAiCall(db: DB, entry: AiCallLog): void {
   });
 }
 ```
-> Place the two `import` lines at the top of the file with the existing imports, not inline.
+> Put the `randomUUID` import at the top with the existing imports. `client.ts` keeps its own structurally-identical `AiCallLog` type; the factory passes client entries to `logAiCall` and TS structural typing accepts them — no cross-layer import.
 
 - [ ] **Step 4: Run test — PASS.**
 
@@ -517,9 +565,9 @@ import { getLlmClient } from "./index";
 import { MockLlmClient } from "./mock";
 
 describe("getLlmClient", () => {
-  it("returns a disabled client that throws when effectiveAiEnabled is false", async () => {
+  it("is a disabled client (throws) when effectiveAiEnabled is false", async () => {
     const db = makeTestDb();
-    const client = await getLlmClient(db, { effectiveAiEnabled: false });
+    const client = await getLlmClient(db, { effectiveAiEnabled: false, gatewayConfigured: true });
     expect(client.enabled).toBe(false);
     await expect(
       client.generateObject({ role: "default", purpose: "p", schema: z.object({}), prompt: "x" }),
@@ -527,10 +575,17 @@ describe("getLlmClient", () => {
     db.close();
   });
 
+  it("is disabled when AI is enabled but the gateway is not configured", async () => {
+    const db = makeTestDb();
+    const client = await getLlmClient(db, { effectiveAiEnabled: true, gatewayConfigured: false });
+    expect(client.enabled).toBe(false);
+    db.close();
+  });
+
   it("uses an injected client when provided (test seam)", async () => {
     const db = makeTestDb();
     const mock = new MockLlmClient().setText("p", "hi");
-    const client = await getLlmClient(db, { effectiveAiEnabled: true, override: mock });
+    const client = await getLlmClient(db, { effectiveAiEnabled: true, gatewayConfigured: true, override: mock });
     expect(await client.generateText({ role: "fast", purpose: "p", prompt: "x" })).toBe("hi");
     db.close();
   });
@@ -538,6 +593,15 @@ describe("getLlmClient", () => {
 ```
 
 - [ ] **Step 2: Run test — FAIL.**
+
+- [ ] **Step 2b: Calibrate the AI SDK API against the installed package (Codex F2)**
+
+Before writing the transport, prove the installed `ai` package's API — do not write the SDK call from memory (spec §17). Run:
+```bash
+ls node_modules/ai/docs >/dev/null 2>&1 && echo "docs present" || echo "no bundled docs — use ai-sdk.dev"
+grep -rl "generateObject" node_modules/ai/docs 2>/dev/null | head -3
+```
+Open the matched doc (and `node_modules/ai/src` if needed), follow the `vercel:ai-sdk` skill, and confirm: (a) the exact `generateObject` / `generateText` argument + return shape, and (b) that a plain `"provider/model"` string is accepted as `model` via the AI Gateway. Only write `transport.ts` once confirmed; correct the shape below if the installed version differs.
 
 - [ ] **Step 3: Implement the AI SDK transport** (the ONLY AI-SDK touch-point)
 
@@ -591,12 +655,17 @@ function disabledClient(): LlmClient {
 
 export async function getLlmClient(
   db: DB,
-  opts: { effectiveAiEnabled: boolean; override?: LlmClient },
+  opts: { effectiveAiEnabled: boolean; gatewayConfigured: boolean; override?: LlmClient },
 ): Promise<LlmClient> {
   if (opts.override) return opts.override;
-  if (!opts.effectiveAiEnabled) return disabledClient();
-  // Dynamic import keeps the AI SDK out of the test path (tests always pass
-  // `override` or `effectiveAiEnabled:false`) and is ESLint-clean (no `require`).
+  // M0c routes via the AI Gateway (only `ai` is installed): models are
+  // "provider/model" strings the Gateway resolves with AI_GATEWAY_API_KEY, so any
+  // provider works and there's no provider/key mismatch (Codex F4). Need both the
+  // intent flag AND the gateway credential; otherwise degrade to disabled.
+  if (!opts.effectiveAiEnabled || !opts.gatewayConfigured) return disabledClient();
+  // Dynamic import keeps the AI SDK out of the test path (tests pass `override`
+  // or a disabled combo) and is ESLint-clean (no `require`, Codex-confirmed
+  // `@typescript-eslint/no-require-imports`).
   const { aiSdkTransport } = await import("./transport");
   return createLlmClient(aiSdkTransport(), {
     resolveModel,
@@ -604,7 +673,7 @@ export async function getLlmClient(
   });
 }
 ```
-> `getLlmClient` is async (uses `await import("./transport")`) — this satisfies `@typescript-eslint/no-require-imports` (enabled by Next's TS ESLint preset, confirmed in the Codex plan review). All callers (future M2/M3 consumers) must `await getLlmClient(...)`; there are no callers yet, so no cascade.
+> **M0c is AI-Gateway-only.** Callers derive `gatewayConfigured` from `!!AI_GATEWAY_API_KEY` (config exposes it) and `effectiveAiEnabled` from config; both are required. Direct per-provider-package routing is deferred to a later milestone. **Disabled-client calls are intentionally NOT written to `ai_call_log`** (no model call is made; Codex F6). `getLlmClient` is async — future M2/M3 callers `await` it; no callers exist yet.
 
 - [ ] **Step 5: Run test — PASS.** Run: `npx vitest run src/lib/llm/index.test.ts`
 
@@ -618,7 +687,9 @@ git commit -m "feat(m0c): AI SDK transport + factory with graceful degradation"
 
 ---
 
-### Task 8: Cross-provider structured-output canary + full gate
+### Task 8: Single-model live canary + full gate
+
+> Scope note (Codex F7): this is a **single-model** live smoke of the configured `default` model — not true cross-provider conformance. Iterating an env-driven list of provider models is deferred to the consumers (M2/M3).
 
 **Files:** Create `src/lib/llm/canary.live.test.ts`
 
@@ -668,8 +739,8 @@ git add src/lib/llm/canary.live.test.ts
 git commit -m "test(m0c): env-gated cross-provider structured-output canary"
 ```
 
-- [ ] **Step 5 (optional, manual): run the live canary once** if a provider key is configured:
-`RUN_LIVE_AI=1 AI_GATEWAY_API_KEY=... npx vitest run src/lib/llm/canary.live.test.ts`
+- [ ] **Step 5 (optional, manual): run the live canary once** if the gateway is configured:
+`RUN_LIVE_AI=1 AI_GATEWAY_API_KEY=... VIVA_MODEL_DEFAULT=anthropic/claude-sonnet-4.6 npx vitest run src/lib/llm/canary.live.test.ts`
 
 ---
 
