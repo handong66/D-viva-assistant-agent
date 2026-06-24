@@ -1,0 +1,29 @@
+# AGENTS.md — viva-assistant Cold-Start Contract
+
+> 给 Claude 和 Codex 的最小冷启动契约。90 秒读完即可做安全工作。详情在设计 spec 与（待建）`docs/plans/`。
+> 项目：通用论文答辩准备应用（任意论文 → AI 备考包 + 实时考官 + 五维判分 + 复盘）。从 `MPhil-Thesis-fork/viva_prep` 干净重构而来。
+
+## Red Lines — 没读别的也要守
+1. **证据绑定，不编事实。** 每条生成内容（尤其关键数字、引用）和每道考题都必须绑定 ingest 出的 `evidence_unit`；judge/examiner **只依据绑定证据**判定，不靠模型先验。(spec §10/§11)
+2. **LLM 走统一层。** 所有模型调用经 `lib/llm`（`model-registry` + `client`）；**不在各处散落 provider SDK 调用**；模型名只在 env，不硬编码。(spec §8)
+3. **本地、单用户、零个人数据。** v1 不联网/不登录/不上云；绝不迁移或提交个人论文数据、录音、密钥。`.env*` / `data/` / `recordings/` 已 gitignore。(spec §3/§9)
+4. **AI 优雅降级。** 无可用 key → AI disabled，app 仍可用（练习 + transcript），不崩。(spec §8)
+5. **测试默认不调真实模型。** 集成用 mock LLM；真实调用仅在 env gate（如 `RUN_LIVE_AI=1`）下。(spec §15)
+
+## 协作模型 — Claude ↔ Codex 互评（沿用 academic-agent 老流程）
+双向互评，不是单向"Codex 写、Claude 跑测试"：
+- **Claude 实现**（TDD、最小实现、每任务一提交，跑 `test`/`typecheck`/`lint`）。**Codex 静态 review** + `npx tsc --noEmit`（Codex 沙箱跑不了 npm/vitest）。
+- **每里程碑设 Codex 互评 gate**：Claude 实现 → Codex review → 把发现回喂修复（谁改让对方再 review）→ **双方 + 测试三者一致**才算该段 Done。**绿测试 ≠ Done**。
+- **复查一律开新 Codex 线程（`--fresh`）**：续接旧线程会上下文漂移、虚构 bug；对 Codex 每条结论先 grep/读码核实再采纳。
+- Codex 启动注意 `service_tier` 必须 `fast`/`flex`（否则起不来）。
+
+## Doc-sync 一致性集 — 改一个必须一起改
+- 设计 spec (`docs/superpowers/specs/2026-06-23-viva-assistant-generic-design.md`) ↔ plan (`docs/plans/…`) ↔ 代码。
+- DB schema (`db/schema.ts`) ↔ spec §6 数据模型。
+- env 契约 (`.env.example`) ↔ spec §14。
+
+## Canonical commands（M0 脚手架时落地）
+- `npm run dev` · `npm test`(vitest) · `npm run typecheck`(tsc) · `npm run lint` · `npm run build`
+
+## What this file is not
+不是 spec，不是实现计划，不是变更日志。详情归 spec / plan。本文件随脚手架演进。
