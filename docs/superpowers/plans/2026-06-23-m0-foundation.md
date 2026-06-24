@@ -132,7 +132,8 @@ Run:
 ```bash
 npm install zod
 npm install -D vitest @vitest/coverage-v8
-npm pkg set scripts.test="vitest run" scripts.typecheck="tsc --noEmit" scripts.lint="next lint"
+npm pkg set scripts.test="vitest run" scripts.typecheck="tsc --noEmit"
+# NOTE: Next 16 removed `next lint`; the scaffold's lint script is already `eslint`. Do not overwrite it.
 ```
 
 - [ ] **Step 2: Write the failing test**

@@ -1,5 +1,7 @@
--- schema_migrations is created by the migration runner's bootstrap (see migrate.ts), not here.
-
+// Migration 0001 — initial schema. Embedded as a string (not a .sql file) so it
+// is bundled into the server build and survives Next.js output-file tracing.
+// schema_migrations is created by the migration runner's bootstrap (see migrate.ts).
+export const sql = `
 CREATE TABLE thesis (
   id TEXT PRIMARY KEY,
   title TEXT NOT NULL,
@@ -11,7 +13,6 @@ CREATE TABLE thesis (
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
--- single active thesis at a time
 CREATE UNIQUE INDEX idx_thesis_one_active ON thesis (is_active) WHERE is_active = 1;
 
 CREATE TABLE thesis_chunk (
@@ -100,6 +101,7 @@ CREATE TABLE practice_run_evidence (
   evidence_unit_id TEXT NOT NULL REFERENCES evidence_unit(id) ON DELETE RESTRICT,
   PRIMARY KEY (practice_run_id, evidence_unit_id)
 );
+CREATE INDEX idx_pre_evidence ON practice_run_evidence (evidence_unit_id);
 
 CREATE TABLE review_item (
   id TEXT PRIMARY KEY,
@@ -162,3 +164,4 @@ CREATE TABLE ai_call_log (
 );
 
 CREATE TABLE app_meta (key TEXT PRIMARY KEY, value TEXT);
+`;

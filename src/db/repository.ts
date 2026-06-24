@@ -20,14 +20,23 @@ export function replaceActiveThesis(db: DB, t: NewThesis): void {
   tx();
 }
 
-/** Bind evidence units to a prep_item, enforcing the same-thesis invariant. */
-export function bindPrepEvidence(db: DB, prepItemId: string, evidenceUnitIds: string[]): void {
-  const prep = db.prepare("SELECT thesis_id FROM prep_item WHERE id=?").get(prepItemId) as
+// Bind evidence units to a parent row (prep_item or practice_run), enforcing the
+// same-thesis invariant transactionally. Table/column names are internal constants,
+// never user input.
+function bindEvidence(
+  db: DB,
+  parentTable: "prep_item" | "practice_run",
+  joinTable: "prep_item_evidence" | "practice_run_evidence",
+  parentCol: "prep_item_id" | "practice_run_id",
+  parentId: string,
+  evidenceUnitIds: string[],
+): void {
+  const parent = db.prepare(`SELECT thesis_id FROM ${parentTable} WHERE id=?`).get(parentId) as
     | { thesis_id: string }
     | undefined;
-  if (!prep) throw new Error(`prep_item not found: ${prepItemId}`);
+  if (!parent) throw new Error(`${parentTable} not found: ${parentId}`);
   const insert = db.prepare(
-    "INSERT INTO prep_item_evidence (prep_item_id, evidence_unit_id) VALUES (?,?)",
+    `INSERT INTO ${joinTable} (${parentCol}, evidence_unit_id) VALUES (?,?)`,
   );
   const tx = db.transaction(() => {
     for (const eid of evidenceUnitIds) {
@@ -35,13 +44,34 @@ export function bindPrepEvidence(db: DB, prepItemId: string, evidenceUnitIds: st
         | { thesis_id: string }
         | undefined;
       if (!ev) throw new Error(`evidence_unit not found: ${eid}`);
-      if (ev.thesis_id !== prep.thesis_id) {
+      if (ev.thesis_id !== parent.thesis_id) {
         throw new Error(
-          `evidence ${eid} not from the same thesis as prep_item ${prepItemId}`,
+          `evidence ${eid} not from the same thesis as ${parentTable} ${parentId}`,
         );
       }
-      insert.run(prepItemId, eid);
+      insert.run(parentId, eid);
     }
   });
   tx();
+}
+
+/** Bind evidence units to a prep_item (same-thesis enforced). */
+export function bindPrepEvidence(db: DB, prepItemId: string, evidenceUnitIds: string[]): void {
+  bindEvidence(db, "prep_item", "prep_item_evidence", "prep_item_id", prepItemId, evidenceUnitIds);
+}
+
+/** Bind evidence units to a practice_run question (same-thesis enforced). */
+export function bindPracticeRunEvidence(
+  db: DB,
+  practiceRunId: string,
+  evidenceUnitIds: string[],
+): void {
+  bindEvidence(
+    db,
+    "practice_run",
+    "practice_run_evidence",
+    "practice_run_id",
+    practiceRunId,
+    evidenceUnitIds,
+  );
 }

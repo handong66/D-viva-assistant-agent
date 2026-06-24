@@ -22,4 +22,14 @@ describe("loadConfig", () => {
     expect(c.sttProvider).toBe("off");
     expect(c.dbPath).toBe("./data/viva.sqlite");
   });
+
+  it("does NOT enable AI when only GOOGLE_VERTEX_PROJECT is set (project id is not a credential)", () => {
+    const c = loadConfig({ VIVA_AI_ENABLED: "true", GOOGLE_VERTEX_PROJECT: "my-proj" });
+    expect(c.effectiveAiEnabled).toBe(false);
+  });
+
+  it("enables AI when Vertex ADC credentials (GOOGLE_APPLICATION_CREDENTIALS) are present", () => {
+    const c = loadConfig({ VIVA_AI_ENABLED: "true", GOOGLE_APPLICATION_CREDENTIALS: "/path/sa.json" });
+    expect(c.effectiveAiEnabled).toBe(true);
+  });
 });

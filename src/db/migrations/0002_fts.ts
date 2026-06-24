@@ -1,6 +1,7 @@
--- FTS5 over evidence_unit.text, kept in sync by triggers.
--- Contentful (stores evidence_unit_id + text) rather than external-content,
--- because evidence_unit has a TEXT primary key (external-content keys on integer rowid).
+// Migration 0002 — FTS5 over evidence_unit.text, synced by triggers.
+// Contentful (stores evidence_unit_id + text) rather than external-content,
+// because evidence_unit has a TEXT primary key (external-content keys on integer rowid).
+export const sql = `
 CREATE VIRTUAL TABLE evidence_fts USING fts5(
   evidence_unit_id UNINDEXED,
   text,
@@ -19,3 +20,4 @@ CREATE TRIGGER evidence_au AFTER UPDATE ON evidence_unit BEGIN
   DELETE FROM evidence_fts WHERE evidence_unit_id = old.id;
   INSERT INTO evidence_fts (evidence_unit_id, text) VALUES (new.id, new.text);
 END;
+`;

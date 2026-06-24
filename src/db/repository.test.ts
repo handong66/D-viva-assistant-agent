@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { makeTestDb } from "../test/db";
-import { replaceActiveThesis, bindPrepEvidence } from "./repository";
+import { replaceActiveThesis, bindPrepEvidence, bindPracticeRunEvidence } from "./repository";
 
 describe("replaceActiveThesis", () => {
   it("keeps exactly one active thesis", () => {
@@ -59,6 +59,36 @@ describe("bindPrepEvidence", () => {
     expect(() => bindPrepEvidence(db, "p1", ["e1", "e2"])).toThrow();
     const c = db.prepare("SELECT count(*) c FROM prep_item_evidence WHERE prep_item_id='p1'").get() as { c: number };
     expect(c.c).toBe(0);
+    db.close();
+  });
+});
+
+describe("bindPracticeRunEvidence", () => {
+  function seed(db: ReturnType<typeof makeTestDb>) {
+    db.exec(`
+      INSERT INTO thesis (id,title,source_kind,is_active) VALUES ('t1','A','md',1);
+      INSERT INTO thesis (id,title,source_kind,is_active) VALUES ('t2','B','md',0);
+      INSERT INTO thesis_chunk (id,thesis_id,ord,text,char_count,hash) VALUES ('c1','t1',0,'x',1,'h');
+      INSERT INTO thesis_chunk (id,thesis_id,ord,text,char_count,hash) VALUES ('c2','t2',0,'y',1,'h');
+      INSERT INTO evidence_unit (id,thesis_id,chunk_id,char_start,char_end,text,hash) VALUES ('e1','t1','c1',0,1,'x','h');
+      INSERT INTO evidence_unit (id,thesis_id,chunk_id,char_start,char_end,text,hash) VALUES ('e2','t2','c2',0,1,'y','h');
+      INSERT INTO practice_run (id,thesis_id,question,question_kind,status) VALUES ('r1','t1','Q?','random','practice');
+    `);
+  }
+
+  it("binds same-thesis evidence to a practice_run", () => {
+    const db = makeTestDb();
+    seed(db);
+    bindPracticeRunEvidence(db, "r1", ["e1"]);
+    const c = db.prepare("SELECT count(*) c FROM practice_run_evidence WHERE practice_run_id='r1'").get() as { c: number };
+    expect(c.c).toBe(1);
+    db.close();
+  });
+
+  it("rejects cross-thesis evidence on a practice_run", () => {
+    const db = makeTestDb();
+    seed(db);
+    expect(() => bindPracticeRunEvidence(db, "r1", ["e2"])).toThrow(/same thesis/i);
     db.close();
   });
 });
