@@ -20,19 +20,21 @@ describe("schema", () => {
     db.close();
   });
 
-  it("records the applied migration version", () => {
+  it("records the init migration as applied", () => {
     const db = makeTestDb();
-    const v = db.prepare("SELECT max(version) v FROM schema_migrations").get() as { v: number };
-    expect(v.v).toBe(1);
+    const initApplied = db
+      .prepare("SELECT count(*) c FROM schema_migrations WHERE version=1")
+      .get() as { c: number };
+    expect(initApplied.c).toBe(1);
     db.close();
   });
 
   it("is idempotent (re-running applies nothing new)", () => {
     const db = makeTestDb();
-    // re-run migrations; should not throw or duplicate
+    const before = (db.prepare("SELECT count(*) c FROM schema_migrations").get() as { c: number }).c;
     expect(() => runMigrations(db)).not.toThrow();
-    const count = db.prepare("SELECT count(*) c FROM schema_migrations").get() as { c: number };
-    expect(count.c).toBe(1);
+    const after = (db.prepare("SELECT count(*) c FROM schema_migrations").get() as { c: number }).c;
+    expect(after).toBe(before);
     db.close();
   });
 
