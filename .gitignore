@@ -1,41 +1,52 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
 # dependencies
-node_modules/
-.pnp/
-.pnp.js
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# testing
+/coverage
 
 # next.js
-.next/
-out/
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# env files (can opt-in for committing if needed)
+.env*
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
 next-env.d.ts
 
-# build
-dist/
-build/
-
-# env (never commit secrets / personal GCP config)
+# viva-assistant
 .env
 .env.local
 .env*.local
-
-# local data (sqlite + WAL/SHM)
 data/
 *.sqlite
 *.sqlite-shm
 *.sqlite-wal
-
-# personal practice recordings
 recordings/
-
-# test artifacts
 coverage/
-test-results/
-playwright-report/
-.playwright/
-
-# os / editor
-.DS_Store
-*.log
-npm-debug.log*
-yarn-error.log*
-.vscode/
-.idea/

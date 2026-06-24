@@ -12,6 +12,8 @@
 
 **Spec:** `docs/superpowers/specs/2026-06-23-viva-assistant-generic-design.md` (§4 runtime boundaries, §6 data model, §14 env, §19 milestones).
 
+> **AS-BUILT correction (Codex M0 review, finding M1):** Migrations shipped as **embedded TS string modules** — `src/db/migrations/0001_init.ts`, `0002_fts.ts`, and `index.ts` (an ordered `{version, sql}[]` array), imported by `migrate.ts`. They are **NOT** `.sql` files read via `fs.readFileSync` — that approach would crash under Next.js production output-file tracing. Wherever Tasks 5–6 below show `.sql` files or an `fs`-based migration runner, the committed TS-string approach **supersedes** them. (`vitest.config.ts` was also created in Task 4, aliasing `server-only` to a no-op for Node tests, not in Task 5.)
+
 ---
 
 ## File Structure
@@ -38,28 +40,30 @@
 - Create: app scaffold (`package.json`, `src/app/*`, `next.config.ts`, `tsconfig.json`, etc.)
 - Preserve: `AGENTS.md`, `docs/`, `.git/`, merge `.gitignore`
 
-- [ ] **Step 1: Back up our .gitignore (create-next-app will overwrite it)**
+- [ ] **Step 1: Move our non-scaffold files out so create-next-app sees a clean dir**
 
-Run:
+create-next-app refuses to scaffold into a dir containing files outside its allowlist (`docs/`, `AGENTS.md`). `.git` is allowlisted and stays. Run:
 ```bash
-cp .gitignore .gitignore.viva-bak
+PRESERVE=$(mktemp -d) && echo "$PRESERVE" > .preserve-path
+mv AGENTS.md docs .gitignore "$PRESERVE"/
 ```
 
-- [ ] **Step 2: Scaffold into the current directory**
+- [ ] **Step 2: Scaffold into the current directory (non-interactive)**
 
 Run:
 ```bash
-npx create-next-app@latest . --typescript --tailwind --app --eslint --src-dir --use-npm --no-turbopack --no-import-alias
+npx --yes create-next-app@latest . --ts --tailwind --eslint --app --src-dir --use-npm --no-import-alias --yes
 ```
-When prompted about a non-empty directory, choose to continue (our `docs/`, `AGENTS.md` are kept; it only conflicts on `.gitignore`).
-Expected: scaffold completes, `npm install` runs.
+Expected: scaffold completes and `npm install` runs. Accept create-next-app defaults for any option not pinned by a flag (e.g. Turbopack).
 
-- [ ] **Step 3: Re-merge our ignore rules into the generated .gitignore**
+- [ ] **Step 3: Restore preserved files and merge .gitignore**
 
 Run:
 ```bash
-printf '\n# viva-assistant\n.env\n.env.local\n.env*.local\ndata/\n*.sqlite\n*.sqlite-shm\n*.sqlite-wal\nrecordings/\ncoverage/\n.gitignore.viva-bak\n' >> .gitignore
-rm -f .gitignore.viva-bak
+PRESERVE=$(cat .preserve-path)
+cp -R "$PRESERVE"/docs "$PRESERVE"/AGENTS.md ./
+printf '\n# viva-assistant\n.env\n.env.local\n.env*.local\ndata/\n*.sqlite\n*.sqlite-shm\n*.sqlite-wal\nrecordings/\ncoverage/\n' >> .gitignore
+rm -rf "$PRESERVE" .preserve-path
 ```
 
 - [ ] **Step 4: Verify it builds**
@@ -130,7 +134,8 @@ Run:
 ```bash
 npm install zod
 npm install -D vitest @vitest/coverage-v8
-npm pkg set scripts.test="vitest run" scripts.typecheck="tsc --noEmit" scripts.lint="next lint"
+npm pkg set scripts.test="vitest run" scripts.typecheck="tsc --noEmit"
+# NOTE: Next 16 removed `next lint`; the scaffold's lint script is already `eslint`. Do not overwrite it.
 ```
 
 - [ ] **Step 2: Write the failing test**
