@@ -6,7 +6,7 @@
 ## Red Lines — 没读别的也要守
 1. **证据绑定，不编事实。** 每条生成内容（尤其关键数字、引用）和每道考题都必须绑定 ingest 出的 `evidence_unit`；judge/examiner **只依据绑定证据**判定，不靠模型先验。(spec §10/§11)
 2. **LLM 走统一层。** 所有模型调用经 `lib/llm`（`model-registry` + `client`）；**不在各处散落 provider SDK 调用**；模型名只在 env，不硬编码。(spec §8)
-3. **本地、单用户、零个人数据。** v1 不联网/不登录/不上云；绝不迁移或提交个人论文数据、录音、密钥。`.env*` / `data/` / `recordings/` 已 gitignore。(spec §3/§9)
+3. **本地优先、单用户、零个人数据。** 数据/DB/录音留本机、不上云同步、不做账号；AI/STT 是把文本发给你配置的供应商的**可选外呼**（有 key 才启用、UI 明告会发什么给谁）。绝不迁移或提交个人论文数据、录音、密钥；`.env*` / `data/` / `recordings/` 已 gitignore。(spec §3)
 4. **AI 优雅降级。** 无可用 key → AI disabled，app 仍可用（练习 + transcript），不崩。(spec §8)
 5. **测试默认不调真实模型。** 集成用 mock LLM；真实调用仅在 env gate（如 `RUN_LIVE_AI=1`）下。(spec §15)
 
