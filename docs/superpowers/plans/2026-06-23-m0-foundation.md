@@ -38,28 +38,30 @@
 - Create: app scaffold (`package.json`, `src/app/*`, `next.config.ts`, `tsconfig.json`, etc.)
 - Preserve: `AGENTS.md`, `docs/`, `.git/`, merge `.gitignore`
 
-- [ ] **Step 1: Back up our .gitignore (create-next-app will overwrite it)**
+- [ ] **Step 1: Move our non-scaffold files out so create-next-app sees a clean dir**
 
-Run:
+create-next-app refuses to scaffold into a dir containing files outside its allowlist (`docs/`, `AGENTS.md`). `.git` is allowlisted and stays. Run:
 ```bash
-cp .gitignore .gitignore.viva-bak
+PRESERVE=$(mktemp -d) && echo "$PRESERVE" > .preserve-path
+mv AGENTS.md docs .gitignore "$PRESERVE"/
 ```
 
-- [ ] **Step 2: Scaffold into the current directory**
+- [ ] **Step 2: Scaffold into the current directory (non-interactive)**
 
 Run:
 ```bash
-npx create-next-app@latest . --typescript --tailwind --app --eslint --src-dir --use-npm --no-turbopack --no-import-alias
+npx --yes create-next-app@latest . --ts --tailwind --eslint --app --src-dir --use-npm --no-import-alias --yes
 ```
-When prompted about a non-empty directory, choose to continue (our `docs/`, `AGENTS.md` are kept; it only conflicts on `.gitignore`).
-Expected: scaffold completes, `npm install` runs.
+Expected: scaffold completes and `npm install` runs. Accept create-next-app defaults for any option not pinned by a flag (e.g. Turbopack).
 
-- [ ] **Step 3: Re-merge our ignore rules into the generated .gitignore**
+- [ ] **Step 3: Restore preserved files and merge .gitignore**
 
 Run:
 ```bash
-printf '\n# viva-assistant\n.env\n.env.local\n.env*.local\ndata/\n*.sqlite\n*.sqlite-shm\n*.sqlite-wal\nrecordings/\ncoverage/\n.gitignore.viva-bak\n' >> .gitignore
-rm -f .gitignore.viva-bak
+PRESERVE=$(cat .preserve-path)
+cp -R "$PRESERVE"/docs "$PRESERVE"/AGENTS.md ./
+printf '\n# viva-assistant\n.env\n.env.local\n.env*.local\ndata/\n*.sqlite\n*.sqlite-shm\n*.sqlite-wal\nrecordings/\ncoverage/\n' >> .gitignore
+rm -rf "$PRESERVE" .preserve-path
 ```
 
 - [ ] **Step 4: Verify it builds**
