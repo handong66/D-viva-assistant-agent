@@ -44,11 +44,39 @@ Expected: `ai` (v6+) added; `node_modules/ai/docs/` exists.
 Run: `ls node_modules/ai/docs | head`
 Expected: markdown docs listed (used in Task 7).
 
-- [ ] **Step 3: Commit**
+- [ ] **Step 3: Create `.env.example` (env contract) and allow it past .gitignore**
+
+The repo has no `.env.example`, and `.gitignore` ignores `.env*` (which would hide the template too). Add the example + a negation so it is committable (Codex plan review: env-contract drift / AGENTS doc-sync with spec §14). Run:
+```bash
+printf '%s\n' \
+'# LLM — AI is active only when VIVA_AI_ENABLED=true AND a provider key resolves. Tests always mock.' \
+'VIVA_AI_ENABLED=true' \
+'VIVA_MODEL_DEFAULT=anthropic/claude-sonnet-4.6' \
+'VIVA_MODEL_HARD=anthropic/claude-opus-4.8' \
+'VIVA_MODEL_FAST=anthropic/claude-sonnet-4.6' \
+'AI_GATEWAY_API_KEY=' \
+'GOOGLE_GENERATIVE_AI_API_KEY=' \
+'ANTHROPIC_API_KEY=' \
+'OPENAI_API_KEY=' \
+'# Vertex needs ADC credentials (not just a project id) to count as enabled' \
+'GOOGLE_VERTEX_PROJECT=' \
+'GOOGLE_APPLICATION_CREDENTIALS=' \
+'# STT (default off; google_cloud is explicit opt-in)' \
+'STT_PROVIDER=off' \
+'# Tests / DB' \
+'RUN_LIVE_AI=' \
+'VIVA_DB_PATH=./data/viva.sqlite' \
+> .env.example
+printf '\n# allow the committed env template\n!.env.example\n' >> .gitignore
+git check-ignore .env.example >/dev/null && echo "STILL IGNORED — fix .gitignore" || echo "ok: .env.example is trackable"
+```
+Expected: `ok: .env.example is trackable`.
+
+- [ ] **Step 4: Commit**
 
 ```bash
-git add package.json package-lock.json
-git commit -m "chore(m0c): add ai (Vercel AI SDK)"
+git add package.json package-lock.json .env.example .gitignore
+git commit -m "chore(m0c): add ai (Vercel AI SDK) + .env.example env contract"
 ```
 
 ---
@@ -491,7 +519,7 @@ import { MockLlmClient } from "./mock";
 describe("getLlmClient", () => {
   it("returns a disabled client that throws when effectiveAiEnabled is false", async () => {
     const db = makeTestDb();
-    const client = getLlmClient(db, { effectiveAiEnabled: false });
+    const client = await getLlmClient(db, { effectiveAiEnabled: false });
     expect(client.enabled).toBe(false);
     await expect(
       client.generateObject({ role: "default", purpose: "p", schema: z.object({}), prompt: "x" }),
@@ -502,7 +530,7 @@ describe("getLlmClient", () => {
   it("uses an injected client when provided (test seam)", async () => {
     const db = makeTestDb();
     const mock = new MockLlmClient().setText("p", "hi");
-    const client = getLlmClient(db, { effectiveAiEnabled: true, override: mock });
+    const client = await getLlmClient(db, { effectiveAiEnabled: true, override: mock });
     expect(await client.generateText({ role: "fast", purpose: "p", prompt: "x" })).toBe("hi");
     db.close();
   });
@@ -561,21 +589,22 @@ function disabledClient(): LlmClient {
   };
 }
 
-export function getLlmClient(
+export async function getLlmClient(
   db: DB,
   opts: { effectiveAiEnabled: boolean; override?: LlmClient },
-): LlmClient {
+): Promise<LlmClient> {
   if (opts.override) return opts.override;
   if (!opts.effectiveAiEnabled) return disabledClient();
-  // Lazy import so tests never load the AI SDK.
-  const { aiSdkTransport } = require("./transport") as typeof import("./transport");
+  // Dynamic import keeps the AI SDK out of the test path (tests always pass
+  // `override` or `effectiveAiEnabled:false`) and is ESLint-clean (no `require`).
+  const { aiSdkTransport } = await import("./transport");
   return createLlmClient(aiSdkTransport(), {
     resolveModel,
     logCall: (entry) => logAiCall(db, entry),
   });
 }
 ```
-> The `require("./transport")` keeps the AI SDK out of the test path (tests always pass `override` or `effectiveAiEnabled:false`). If the project's lint forbids `require`, use a dynamic `await import` and make `getLlmClient` async — but then update callers accordingly; keep it sync for M0c.
+> `getLlmClient` is async (uses `await import("./transport")`) — this satisfies `@typescript-eslint/no-require-imports` (enabled by Next's TS ESLint preset, confirmed in the Codex plan review). All callers (future M2/M3 consumers) must `await getLlmClient(...)`; there are no callers yet, so no cascade.
 
 - [ ] **Step 5: Run test — PASS.** Run: `npx vitest run src/lib/llm/index.test.ts`
 
