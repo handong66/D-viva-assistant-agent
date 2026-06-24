@@ -12,6 +12,8 @@
 
 **Spec:** `docs/superpowers/specs/2026-06-23-viva-assistant-generic-design.md` (§4 runtime boundaries, §6 data model, §14 env, §19 milestones).
 
+> **AS-BUILT correction (Codex M0 review, finding M1):** Migrations shipped as **embedded TS string modules** — `src/db/migrations/0001_init.ts`, `0002_fts.ts`, and `index.ts` (an ordered `{version, sql}[]` array), imported by `migrate.ts`. They are **NOT** `.sql` files read via `fs.readFileSync` — that approach would crash under Next.js production output-file tracing. Wherever Tasks 5–6 below show `.sql` files or an `fs`-based migration runner, the committed TS-string approach **supersedes** them. (`vitest.config.ts` was also created in Task 4, aliasing `server-only` to a no-op for Node tests, not in Task 5.)
+
 ---
 
 ## File Structure
