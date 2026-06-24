@@ -1,7 +1,7 @@
 # viva-assistant · 通用论文答辩准备应用 — v1 设计 (Spec)
 
 - 日期：2026-06-23
-- 状态：设计待用户确认（brainstorming 产出）。**已过一轮 Codex 设计互评（CONDITIONAL GO）**，两个 P0 + 关键 P1/P2 已并入本版（见 §20 修订记录）。
+- 状态：设计待用户确认（brainstorming 产出）。**已过两轮 Codex 设计互评**：P0-1 CLOSED；P0-2 经第二轮补 join DDL 不变式 + 校验器分级后闭合（见 §20 修订记录）。
 - 来源：以 `MPhil-Thesis-fork/viva_prep/app`（Han Dong 硕士答辩训练 app）为参考蓝本，干净重构为面向**任意论文**的通用工具。
 
 ---
@@ -106,25 +106,30 @@ samples/                 公开样本论文（文本 fixture）+ 生成包快照
 - **thesis** — `id, title, author?, abstract?, source_kind(pdf|md|txt), source_meta(json), is_active, created_at, updated_at`。**单篇活跃语义（P1-7）**：partial unique index `WHERE is_active=1`；切换论文 = archive 旧、置新 active（repository 提供 `replaceActiveThesis`）。
 - **thesis_chunk** — `id, thesis_id FK, section?, ord, text, char_count, hash`。
 - **evidence_unit** — `id, thesis_id FK, chunk_id FK, section?, page?, char_start, char_end, text, hash`。**ingest-only 主证据（P0-2）**：只从论文原文抽取，绝不指向 AI 衍生物；去掉旧的多态 `ref_table/ref_id` 与 kind 漂移（P2-15）。
-- **evidence_fts** — FTS5 虚表，索引 `evidence_unit.text`，供考官检索 + 覆盖度（P1-8）。
+- **evidence_fts** — FTS5 **external-content** 虚表（`tokenize=unicode61`），由 `evidence_unit` 经 insert/delete/update 触发器同步（或 ingest 事务内重建）；查询做转义；启动 `CREATE VIRTUAL TABLE … USING fts5` 可用性冒烟。**覆盖度** = 有 ≥1 可检索 evidence_unit 的章节占比。**仅 Node 本地运行，不部署 Edge/serverless**（P1-8/复评#3）。
 
 **生成与训练**
-- **prep_item** — `id, thesis_id FK, type(digest|key_number|qa|hostile|theory_card|citation_card), title, body(json), value_numeric?, unit?, status(verified|needs_review|unsafe|draft), source(generated|edited|manual), created_at, updated_at, verified_at?`。`key_number` 用 `value_numeric/unit` 归一化（P0-2）。编辑正文 → 退回 `needs_review` 并重跑校验（P2-16）。
-- **prep_item_evidence** — `prep_item_id FK, evidence_unit_id FK`（关系型绑定，替掉 `evidence_refs(json)`；P0-2）。
-- **generation_run** — `id, thesis_id FK, kind, status(pending|running|done|error|canceled), evidence_snapshot_hash, item_type?, error?, retries, created_at`。承载进度 UI / 幂等 / 部分失败 / 重生成（P1-9）。
-- **practice_run** — `id, thesis_id FK, question, question_kind, answer_text?, transcript?, recording_id? FK, scores(json), diagnosis?, rewrite?, follow_ups(json), status(practice|saved), created_at`。
-- **practice_run_evidence** — `practice_run_id FK, evidence_unit_id FK`（题目绑定证据）。
-- **review_item** — `id, thesis_id FK, practice_run_id FK, dimension, score, reason?, status(open|fixed), created_at`，unique(`practice_run_id`,`dimension`) 防重（P1-10：v1 先做精简低分队列；mastery/streak 等 v2）。
-- **recording** — `id, thesis_id FK, practice_run_id? FK, path, mime, duration_ms, language_mode, stt_provider, stt_status(none|pending|ok|error), stt_error?, transcript?, transcript_edited(bool), created_at`（P1-11）。
+- **prep_item** — `id, thesis_id FK, generation_run_id? FK, type(digest|key_number|qa|hostile|theory_card|citation_card), title, body(json), claim_text?, evidence_quote?, support_kind(existence|exact_quote|numeric|llm_suggested), value_numeric?, unit?, status(verified|needs_review|unsafe|draft), validation_status(passed|needs_review|failed), validator_version, source(generated|edited|manual), created_at, updated_at, verified_at?`。`key_number` 用 `value_numeric/unit` 归一化；编辑正文 → 退回 `needs_review` 重跑校验（P2-16 + 复评#5 provenance）。
+- **prep_item_evidence** / **practice_run_evidence** — 关系型绑定（替掉 json refs；P0-2）。**DDL 不变式（复评#1）**：复合 PK `(parent_id, evidence_unit_id)` + 索引；两端 FK + `ON DELETE CASCADE`；`evidence_unit` 重导入走 `RESTRICT`/重建策略；`PRAGMA foreign_keys=ON`；**同论文不变式**（join 两端同 `thesis_id`，repository 强制 + 测试）；`key_number`/`citation_card` 最小证据基数 ≥1。
+- **generation_run** — `id, thesis_id FK, kind(prep_pack|prep_item|regenerate), status(pending|running|done|error|canceled), evidence_snapshot_hash, item_type?, error?, retries, created_at`。进度 / 幂等 / 部分失败 / 重生成（P1-9）；生成的 `prep_item` 回填 `generation_run_id`。
+- **practice_run** — `id, thesis_id FK, question, question_kind(random|by_section|cross_section|hostile|boundary|followup), answer_text?, transcript?, scores(json), diagnosis?, rewrite?, follow_ups(json), status(practice|saved), created_at`。
+- **review_item** — `id, thesis_id FK, practice_run_id FK, dimension(evidence|clarity|completeness|boundary|delivery), score, reason?, status(open|fixed), created_at`，unique(`practice_run_id`,`dimension`) 防重（P1-10：v1 精简低分队列；mastery/streak v2）。
+- **recording** — `id, thesis_id FK, practice_run_id? FK, path, mime, duration_ms, language_mode(english|chinese), stt_provider, stt_status(none|pending|ok|error), stt_error?, transcript?, transcript_edited(bool), created_at`。**单向拥有 FK**：录音→练习（**去掉** `practice_run.recording_id` 环形引用，复评#6）。
 
 **计划与系统**
-- **plan** / **plan_day** — 多日计划模板（结构同前）。
+- **plan** / **plan_day** — 多日计划模板。
 - **ai_call_log** — `id, thesis_id?, purpose, provider, model, latency_ms, status(ok|error|timeout), error?, tokens(json), created_at`。
-- **schema_migrations** / **app_meta** — 版本与杂项（源 hash 等）。
+- **schema_migrations** / **app_meta** — 版本与杂项。
 
-**五维评分（默认 rubric，实现期细化）**：① 证据/准确性（grounded, 数字不编） ② 清晰度 ③ 完整性 ④ 边界感（不过度声称） ⑤ 英文表达。每维 1–5；任一 ≤2 进复盘。
+**五维评分（默认 rubric，实现期细化）**：① 证据/准确性 ② 清晰度 ③ 完整性 ④ 边界感 ⑤ 英文表达（`dimension` 枚举 `evidence|clarity|completeness|boundary|delivery`）。每维 1–5；任一 ≤2 进复盘。
 
-**落库前校验器（P0-2 核心）**：`evidence/validator.ts` 在保存生成内容/接受答案证据前确定性校验——绑定的 `evidence_unit_id` 存在且属本论文；`key_number` 的 `value_numeric/unit` 必须**出现在绑定证据文本**中；不满足 → 置 `needs_review`/`unsafe`，绝不 `verified`。
+**落库前校验器（P0-2 核心，分级以免越权 — 复评#2）**：`evidence/validator.ts` 分级，**只有确定性可证才允许 `verified`**：
+- **L1 存在/基数**：绑定 `evidence_unit_id` 存在、同论文、满足最小基数。
+- **L2 精确引文**：`evidence_quote` 子串命中绑定证据文本。
+- **L3 数字**：`value_numeric/unit` 出现在绑定证据文本。
+- **L4 LLM 辅助**：仅作**建议**，**绝不**作 `verified` 的门（digest 准确性 / citation 正确性 / QA 蕴含等语义支持无法确定性证明）。
+
+未达 L1–L3 → `needs_review`/`unsafe`；记 `validation_status` + `validator_version`，供内容准确性面板统计。
 
 ---
 
@@ -215,7 +220,7 @@ GOOGLE_APPLICATION_CREDENTIALS=
 RUN_LIVE_AI=                   # 仅设为 1 时才发真实模型调用（对公开样本）
 VIVA_DB_PATH=./data/viva.sqlite
 ```
-启动时做 config 校验（缺失/冲突给清晰报错）；日志对密钥脱敏（P1-12）。
+启动时做 config 校验（缺失/冲突给清晰报错）；日志对密钥脱敏（P1-12）。**有效启用 = `VIVA_AI_ENABLED=true` 且解析到 provider key**（缺一即 disabled；该判定有单测覆盖，复评#7）。
 
 ---
 
@@ -258,7 +263,10 @@ VIVA_DB_PATH=./data/viva.sqlite
 
 ## 19. 里程碑（M0 前置去风险，P1-14）
 
-- **M0 地基**：脚手架 + Next/better-sqlite3 runtime spike + build 冒烟；DB schema（FK/约束/索引）+ 迁移；**evidence 关系模型 + validator**；`LlmClient` + `model-registry` + `MockLlmClient`；**跨 provider 结构化输出 canary**；隐私/env 契约 + config 校验；`AGENTS.md` + lint。
+- **M0 地基（拆三个小 spike，避免单 sprint 过载 — 复评#4）**：
+  - **M0a 运行时+env**：脚手架；Next/better-sqlite3 runtime spike + `next build` 冒烟；隐私/env 契约 + config 校验；`AGENTS.md` + lint。
+  - **M0b DB+证据 DDL**：schema（FK/约束/索引/`foreign_keys=ON`）+ 迁移；evidence_unit + join 表（复合 PK/级联/同论文不变式）+ FTS5 同步/重建。
+  - **M0c LLM+校验**：`LlmClient` + `model-registry` + `MockLlmClient`；跨 provider 结构化输出 canary；分级 validator。
 - **M1**：ingest（extract + 质量报告 + chunk + FTS）。
 - **M2**：prep-pack（generation_run + 生成 + 校验器）。
 - **M3**：考官（检索/覆盖）+ 判分（五维）。
@@ -276,11 +284,11 @@ VIVA_DB_PATH=./data/viva.sqlite
   - P0-2 证据绑定可强制 → §6 evidence_unit 改 ingest-only + 关系型 join 表 + 关键数字归一化 + 落库前 validator。
   - P1：better-sqlite3/Next runtime 边界(§4)、schema 约束/迁移(§6)、单篇活跃语义(§6)、FTS/检索(§6/§11)、generation_run(§6/§10)、recording 字段(§6/§12)、注入式 Mock 客户端(§5/§8/§15)、M0 前置去风险(§19)、conformance canary(§8/§15)、env 安全默认(§14)。
   - P2：enum 归一(§6)、编辑退回 needs_review(§6)、计划晚做打磨(§13)、内容准确性面板定义(§7)。
+- **2026-06-23 Codex 复评（fresh thread，CONDITIONAL GO → 已并入）**：P0-1 判 **CLOSED**；P0-2 由 PARTIAL 补强至闭合 —— join 表 DDL 不变式（复合 PK/级联/同论文/最小基数/`foreign_keys=ON`）+ **校验器分级**（L1–L3 确定性才 `verified`，L4 LLM 仅建议）；generation/validation provenance（`generation_run_id` + `validation_status`/`validator_version`）；FTS5 external-content + 触发器同步 + 仅 Node 运行；**M0 拆 M0a/M0b/M0c**；recording 单向 FK；env 有效启用语义；枚举归一（`generation_run.kind`/`question_kind`/`dimension`/`language_mode`）。
 
 ---
 
 ## 21. 下一步
 
-1. 用户审阅本修订版 spec。
-2. 可选：开新 Codex 线程复评 must-fix 是否闭合（老流程：复查用 fresh thread）。
-3. 通过后进入 `writing-plans`，按 §19 里程碑产出实现计划，每里程碑内置 Codex 互评 gate。
+1. 用户审阅本修订版 spec（已过两轮 Codex 互评，P0 闭合）。
+2. 进入 `writing-plans`，按 §19 里程碑（M0a/b/c → M6）产出实现计划，每里程碑内置 Codex 互评 gate。
