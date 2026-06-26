@@ -227,3 +227,52 @@ export function insertGeneratedPrepItem(
   });
   return id;
 }
+
+export type ExamEvidence = { id: string; text: string; section: string | null };
+
+export const PRACTICE_QUESTION_KINDS = ["random", "by_section", "cross_section", "hostile", "boundary", "followup"] as const;
+
+export function getThesisEvidenceWithSection(db: DB, thesisId: string): ExamEvidence[] {
+  return db
+    .prepare(
+      `SELECT eu.id AS id, eu.text AS text, eu.section AS section
+         FROM evidence_unit eu JOIN thesis_chunk tc ON tc.id = eu.chunk_id
+        WHERE eu.thesis_id = ? ORDER BY tc.ord, eu.char_start, eu.id`,
+    )
+    .all(thesisId) as ExamEvidence[];
+}
+
+/** Evidence bound to a practice_run — NOTE the join table is practice_run_evidence,
+ *  distinct from getBoundEvidence() which reads prep_item_evidence. */
+export function getPracticeRunBoundEvidence(db: DB, practiceRunId: string): EvidenceText[] {
+  return db
+    .prepare(
+      `SELECT eu.id AS id, eu.text AS text
+         FROM practice_run_evidence pre JOIN evidence_unit eu ON eu.id = pre.evidence_unit_id
+        WHERE pre.practice_run_id = ? ORDER BY eu.id`,
+    )
+    .all(practiceRunId) as EvidenceText[];
+}
+
+/** Atomically insert a practice_run AND bind its evidence. There is intentionally no
+ *  public path that persists an unbound run (every question must cite ≥1 evidence). */
+export function insertPracticeRunWithEvidence(
+  db: DB,
+  input: { thesisId: string; question: string; questionKind: string },
+  evidenceUnitIds: string[],
+): string {
+  if (!(PRACTICE_QUESTION_KINDS as readonly string[]).includes(input.questionKind)) {
+    throw new Error(`invalid question_kind: ${input.questionKind}`);
+  }
+  if (evidenceUnitIds.length === 0) throw new Error("a practice_run must bind at least one evidence_unit");
+  const id = randomUUID();
+  const tx = db.transaction(() => {
+    db.prepare(
+      `INSERT INTO practice_run (id, thesis_id, question, question_kind, status)
+       VALUES (@id, @thesis_id, @question, @question_kind, 'practice')`,
+    ).run({ id, thesis_id: input.thesisId, question: input.question, question_kind: input.questionKind });
+    bindPracticeRunEvidence(db, id, evidenceUnitIds); // re-enforces same-thesis; throws EvidenceBindingError otherwise
+  });
+  tx();
+  return id;
+}
