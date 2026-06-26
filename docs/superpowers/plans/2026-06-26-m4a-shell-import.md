@@ -249,8 +249,13 @@ import { ingestThesis, IngestQualityError } from "./index";
 
 it("throws IngestQualityError on a too-short source and persists nothing, leaving the active thesis intact", async () => {
   const db = makeTestDb();
-  // a good thesis is active first
-  await ingestThesis(db, { title: "Good", sourceKind: "md", content: "# A\n\nFirst real paragraph with enough words to pass.\n\nSecond paragraph also has sufficient length to count here." });
+  // a good thesis is active first — 3 body paragraphs, ~340 chars (passes paragraphs>=3 && chars>=200)
+  const goodMd = [
+    "This thesis investigates voice emotion recognition using deep neural networks trained on a large speech corpus.",
+    "The methodology combines spectral features with a transformer encoder, evaluated against several established baselines.",
+    "Results show an overall accuracy of 81.3 percent, with detailed error analysis across the five target emotion classes.",
+  ].join("\n\n");
+  await ingestThesis(db, { title: "Good", sourceKind: "md", content: goodMd });
   // a bad import must NOT persist or displace the active thesis
   await expect(ingestThesis(db, { title: "Bad", sourceKind: "txt", content: "too short" })).rejects.toBeInstanceOf(IngestQualityError);
   const active = db.prepare("SELECT title FROM thesis WHERE is_active=1").get() as { title: string };
@@ -260,7 +265,7 @@ it("throws IngestQualityError on a too-short source and persists nothing, leavin
 });
 ```
 
-> Verify the good-path content above actually yields `report.ok === true` (≥3 paragraphs, ≥200 chars per M1's gate); lengthen it if needed so the good import succeeds.
+> The `goodMd` fixture is concretely sized to pass M1's gate (`paragraphs >= 3 && chars >= 200`, see `extract.ts` `buildReport`): exactly 3 body paragraphs (no heading lines, which parse as sections not paragraphs), ~340 chars. The bad import (`"too short"`) is 1 short paragraph → `ok=false` → throws. Do NOT use a fixture with `<3` body paragraphs — it would fail the gate and break the setup.
 
 - [ ] **Step 2: Run to verify it fails** — `npx vitest run src/lib/ingest/index.test.ts` — FAIL (`IngestQualityError` not exported; bad import currently resolves).
 
