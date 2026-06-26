@@ -346,3 +346,26 @@ export function applyJudgeResult(
   tx();
   return reviewed.map((r) => r.dim);
 }
+
+export type PrepItemRow = { id: string; type: string; title: string; claimText: string | null; status: string; validationStatus: string };
+
+export function getPrepItems(db: DB, thesisId: string): PrepItemRow[] {
+  // Show only the latest successful prep-pack run: de-dups re-generates and hides
+  // partial items left behind by a run that finalized 'error'.
+  const rows = db
+    .prepare(
+      `SELECT id, type, title, claim_text, status, validation_status
+         FROM prep_item
+        WHERE thesis_id = ?
+          AND generation_run_id = (
+            SELECT id FROM generation_run
+             WHERE thesis_id = ? AND kind = 'prep_pack' AND status = 'done'
+             ORDER BY created_at DESC, rowid DESC LIMIT 1
+          )
+        ORDER BY type, created_at, id`,
+    )
+    .all(thesisId, thesisId) as { id: string; type: string; title: string; claim_text: string | null; status: string; validation_status: string }[];
+  return rows.map((r) => ({
+    id: r.id, type: r.type, title: r.title, claimText: r.claim_text, status: r.status, validationStatus: r.validation_status,
+  }));
+}
