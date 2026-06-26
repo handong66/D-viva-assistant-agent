@@ -137,3 +137,43 @@ export function applyValidation(db: DB, prepItemId: string, verdict: Verdict): v
     validator_version: VALIDATOR_VERSION,
   });
 }
+
+export type NewChunk = { ord: number; section?: string; text: string; charStart: number; charEnd: number; hash: string };
+
+export function insertThesisWithChunks(
+  db: DB,
+  input: { thesis: { id: string; title: string; author?: string; abstract?: string; source_kind: "pdf" | "md" | "txt" }; chunks: NewChunk[] },
+): void {
+  const insThesis = db.prepare(
+    "INSERT INTO thesis (id,title,author,abstract,source_kind,is_active) VALUES (@id,@title,@author,@abstract,@source_kind,1)",
+  );
+  const insChunk = db.prepare(
+    "INSERT INTO thesis_chunk (id,thesis_id,section,ord,text,char_count,hash) VALUES (@id,@thesis_id,@section,@ord,@text,@char_count,@hash)",
+  );
+  const insEvidence = db.prepare(
+    "INSERT INTO evidence_unit (id,thesis_id,chunk_id,section,char_start,char_end,text,hash) VALUES (@id,@thesis_id,@chunk_id,@section,@char_start,@char_end,@text,@hash)",
+  );
+  const tx = db.transaction(() => {
+    db.prepare("UPDATE thesis SET is_active=0 WHERE is_active=1").run();
+    insThesis.run({ author: null, abstract: null, ...input.thesis });
+    for (const c of input.chunks) {
+      const chunkId = randomUUID();
+      insChunk.run({
+        id: chunkId, thesis_id: input.thesis.id, section: c.section ?? null,
+        ord: c.ord, text: c.text, char_count: c.text.length, hash: c.hash,
+      });
+      insEvidence.run({
+        id: randomUUID(), thesis_id: input.thesis.id, chunk_id: chunkId, section: c.section ?? null,
+        char_start: c.charStart, char_end: c.charEnd, text: c.text, hash: c.hash,
+      });
+    }
+  });
+  tx();
+}
+
+export function getThesisChunks(db: DB, thesisId: string): { ord: number; text: string }[] {
+  return db.prepare("SELECT ord, text FROM thesis_chunk WHERE thesis_id=? ORDER BY ord").all(thesisId) as { ord: number; text: string }[];
+}
+export function countEvidence(db: DB, thesisId: string): number {
+  return (db.prepare("SELECT count(*) c FROM evidence_unit WHERE thesis_id=?").get(thesisId) as { c: number }).c;
+}
