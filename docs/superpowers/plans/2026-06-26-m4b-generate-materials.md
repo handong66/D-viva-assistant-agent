@@ -4,7 +4,7 @@
 
 **Goal:** Add the generate (§7 ②) + materials (§7 ④) slice to the running app: a "Generate prep pack" button that runs the M2 generator on the active thesis through the bridge's `appLlmClient`, and a `/materials` page that lists the resulting `prep_item`s with verified / needs_review / unsafe badges. **AI re-enters the UI here — it must degrade gracefully when no provider key is configured.**
 
-**Architecture:** Reuse M2's `runPrepPackGeneration` (validator-gated, evidence-bound) unchanged. A Server Action checks `config.effectiveAiEnabled` and short-circuits with a friendly message when AI is off (no model call). A read helper `getPrepItems` feeds the materials RSC. No new generation logic — M4b is wiring + display only.
+**Architecture:** Reuse M2's `runPrepPackGeneration` (validator-gated, evidence-bound) unchanged. A Server Action checks `config.effectiveAiEnabled && config.gatewayConfigured` (the bridge only enables with AI Gateway) and short-circuits with a friendly message when AI is off (no model call). A read helper `getPrepItems` feeds the materials RSC. No new generation logic — M4b is wiring + display only.
 
 **Tech Stack:** Next 16 App Router (RSC + Server Actions), React 19 (`useActionState`), Tailwind v4, better-sqlite3, vitest. AI only via `lib/llm` through the bridge; DB only via `appContext`; evidence-binding untouched (M2 owns it).
 
@@ -80,6 +80,21 @@ describe("getPrepItems", () => {
     expect(getPrepItems(db, "t1")).toEqual([]);
     db.close();
   });
+  it("breaks created_at ties by insertion order (rowid), not UUID order", () => {
+    const db = makeTestDb();
+    db.exec(`
+      INSERT INTO thesis (id,title,source_kind,is_active) VALUES ('t1','T','md',1);
+      INSERT INTO generation_run (id,thesis_id,kind,status,created_at) VALUES ('zzz_first','t1','prep_pack','done','2024-01-05T00:00:00Z');
+      INSERT INTO generation_run (id,thesis_id,kind,status,created_at) VALUES ('aaa_second','t1','prep_pack','done','2024-01-05T00:00:00Z');
+      INSERT INTO prep_item (id,thesis_id,generation_run_id,type,title,status,validation_status,validator_version,source)
+        VALUES ('pa','t1','zzz_first','qa','First','needs_review','needs_review','1','generated');
+      INSERT INTO prep_item (id,thesis_id,generation_run_id,type,title,status,validation_status,validator_version,source)
+        VALUES ('pb','t1','aaa_second','qa','Second','needs_review','needs_review','1','generated');
+    `);
+    // same created_at; 'aaa_second' inserted later (higher rowid) wins even though it sorts BEFORE 'zzz_first' lexically
+    expect(getPrepItems(db, "t1").map((i) => i.title)).toEqual(["Second"]);
+    db.close();
+  });
 });
 ```
 
@@ -101,7 +116,7 @@ export function getPrepItems(db: DB, thesisId: string): PrepItemRow[] {
           AND generation_run_id = (
             SELECT id FROM generation_run
              WHERE thesis_id = ? AND kind = 'prep_pack' AND status = 'done'
-             ORDER BY created_at DESC, id DESC LIMIT 1
+             ORDER BY created_at DESC, rowid DESC LIMIT 1
           )
         ORDER BY type, created_at, id`,
     )
@@ -299,7 +314,7 @@ Expected: gate green; test count = previous (138) + Task 1 (2) = 140 + 2 skipped
 
 ## Red-line / safety checklist
 
-1. **Graceful degrade (red line #4):** the action checks `config.effectiveAiEnabled` and returns a friendly message with NO model call when AI is off; `/materials` itself renders fully without AI (list + empty states). The app never crashes for a key-less user.
+1. **Graceful degrade (red line #4):** the action checks `config.effectiveAiEnabled && config.gatewayConfigured` (mirroring `getLlmClient`) and returns a friendly message with NO model call when AI is off; `/materials` itself renders fully without AI (list + empty states). The app never crashes for a key-less user.
 2. **AI only via `lib/llm` (red line #2):** generation goes through `appLlmClient` → `getLlmClient` → M2 `runPrepPackGeneration`. No provider SDK, no model name in the action.
 3. **Evidence-binding + validator gate intact (red line #1):** M4b reuses `runPrepPackGeneration` unchanged — items are still evidence-bound and only deterministically-provable ones reach `verified`. The badge just reflects the persisted `status`; the UI cannot mark anything verified.
 4. **DB only via the bridge:** `getPrepItems` is called with the `db` from `appContext()`; `/materials` sets `runtime="nodejs"` + `dynamic="force-dynamic"`.
