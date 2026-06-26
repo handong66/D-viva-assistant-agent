@@ -50,6 +50,7 @@ describe("validation repository", () => {
   it("applyValidation with a passed verdict sets status='verified', validation_status='passed', sets verified_at, sets validator_version=VALIDATOR_VERSION", () => {
     const db = makeTestDb();
     seed(db);
+    bindPrepEvidence(db, "p1", ["e1"]);
 
     applyValidation(db, "p1", passedVerdict);
 
@@ -69,6 +70,32 @@ describe("validation repository", () => {
     expect(row.support_kind).toBe("numeric");
     expect(row.validator_version).toBe(VALIDATOR_VERSION);
     expect(row.verified_at).not.toBeNull();
+
+    db.close();
+  });
+
+  it("applyValidation with a passed verdict and no bound evidence leaves status='needs_review'", () => {
+    const db = makeTestDb();
+    seed(db);
+
+    applyValidation(db, "p1", passedVerdict);
+
+    const row = db
+      .prepare(
+        "SELECT status, validation_status, support_kind, validator_version, verified_at FROM prep_item WHERE id='p1'",
+      )
+      .get() as {
+      status: string;
+      validation_status: string;
+      support_kind: string | null;
+      validator_version: string;
+      verified_at: string | null;
+    };
+    expect(row.status).toBe("needs_review");
+    expect(row.validation_status).toBe("needs_review");
+    expect(row.support_kind).toBe("numeric");
+    expect(row.validator_version).toBe(VALIDATOR_VERSION);
+    expect(row.verified_at).toBeNull();
 
     db.close();
   });
@@ -99,6 +126,7 @@ describe("validation repository", () => {
   it("after a passing validation, a subsequent failed verdict clears verified_at", () => {
     const db = makeTestDb();
     seed(db);
+    bindPrepEvidence(db, "p1", ["e1"]);
 
     applyValidation(db, "p1", passedVerdict);
     expect(

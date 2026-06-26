@@ -3,6 +3,10 @@ import { randomUUID } from "node:crypto";
 import type { Database as DB } from "better-sqlite3";
 import { VALIDATOR_VERSION, type EvidenceText, type Verdict } from "../lib/evidence/validator";
 
+export class EvidenceBindingError extends Error {
+  constructor(message: string) { super(message); this.name = "EvidenceBindingError"; }
+}
+
 export type NewThesis = {
   id: string;
   title: string;
@@ -36,7 +40,7 @@ function bindEvidence(
   const parent = db.prepare(`SELECT thesis_id FROM ${parentTable} WHERE id=?`).get(parentId) as
     | { thesis_id: string }
     | undefined;
-  if (!parent) throw new Error(`${parentTable} not found: ${parentId}`);
+  if (!parent) throw new EvidenceBindingError(`${parentTable} not found: ${parentId}`);
   const insert = db.prepare(
     `INSERT INTO ${joinTable} (${parentCol}, evidence_unit_id) VALUES (?,?)`,
   );
@@ -45,9 +49,9 @@ function bindEvidence(
       const ev = db.prepare("SELECT thesis_id FROM evidence_unit WHERE id=?").get(eid) as
         | { thesis_id: string }
         | undefined;
-      if (!ev) throw new Error(`evidence_unit not found: ${eid}`);
+      if (!ev) throw new EvidenceBindingError(`evidence_unit not found: ${eid}`);
       if (ev.thesis_id !== parent.thesis_id) {
-        throw new Error(
+        throw new EvidenceBindingError(
           `evidence ${eid} not from the same thesis as ${parentTable} ${parentId}`,
         );
       }
@@ -117,6 +121,12 @@ export function getBoundEvidence(db: DB, prepItemId: string): EvidenceText[] {
 }
 
 export function applyValidation(db: DB, prepItemId: string, verdict: Verdict): void {
+  const validationStatus: Verdict["validationStatus"] =
+    verdict.validationStatus === "passed" &&
+    (db.prepare("SELECT count(*) c FROM prep_item_evidence WHERE prep_item_id = ?").get(prepItemId) as { c: number }).c === 0
+      ? "needs_review"
+      : verdict.validationStatus;
+
   db.prepare(
     `UPDATE prep_item
         SET status = CASE
@@ -132,7 +142,7 @@ export function applyValidation(db: DB, prepItemId: string, verdict: Verdict): v
       WHERE id = @id`,
   ).run({
     id: prepItemId,
-    validation_status: verdict.validationStatus,
+    validation_status: validationStatus,
     support_kind: verdict.supportKind,
     validator_version: VALIDATOR_VERSION,
   });

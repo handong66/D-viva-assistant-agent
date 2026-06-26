@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import type { Database as DB } from "better-sqlite3";
 import { makeTestDb } from "../../test/db";
 import { MockLlmClient } from "./mock";
 import { runPrepPackGeneration } from "./prep-pack-run";
@@ -9,6 +10,19 @@ function seed(db: ReturnType<typeof makeTestDb>) {
     INSERT INTO thesis_chunk (id,thesis_id,ord,text,char_count,hash) VALUES ('c1','t1',0,'accuracy was 81.3%',18,'h');
     INSERT INTO evidence_unit (id,thesis_id,chunk_id,char_start,char_end,text,hash) VALUES ('e1','t1','c1',0,18,'accuracy was 81.3%','h');
   `);
+}
+
+function withPostBindEvidenceReadFailure(db: DB): DB {
+  return {
+    prepare(sql: string) {
+      if (sql.includes("FROM prep_item_evidence") && sql.includes("JOIN evidence_unit")) {
+        throw new Error("post-bind evidence read failed");
+      }
+      return db.prepare(sql);
+    },
+    transaction: db.transaction.bind(db),
+    exec: db.exec.bind(db),
+  } as unknown as DB;
 }
 
 describe("runPrepPackGeneration", () => {
@@ -57,6 +71,28 @@ describe("runPrepPackGeneration", () => {
     const disabled = { enabled: false, generateObject: () => Promise.reject(new Error("disabled")), generateText: () => Promise.reject(new Error("disabled")) };
     await expect(runPrepPackGeneration(db, disabled as never, "t1")).rejects.toThrow();
     expect((db.prepare("SELECT status FROM generation_run WHERE thesis_id='t1'").get() as { status: string }).status).toBe("error");
+    db.close();
+  });
+
+  it("records the run as error and rethrows when a post-bind DB read fails", async () => {
+    const db = makeTestDb(); seed(db);
+    const mock = new MockLlmClient().setObject("prep_pack", {
+      items: [
+        { type: "key_number", title: "Acc", claim_text: "accuracy 81.3%", value_numeric: 81.3, unit: "%", evidence_unit_ids: ["e1"] },
+      ],
+    });
+
+    await expect(runPrepPackGeneration(withPostBindEvidenceReadFailure(db), mock, "t1")).rejects.toThrow(
+      "post-bind evidence read failed",
+    );
+
+    expect((db.prepare("SELECT count(*) c FROM prep_item_evidence WHERE evidence_unit_id='e1'").get() as { c: number }).c).toBe(1);
+    const run = db.prepare("SELECT status, error FROM generation_run WHERE thesis_id='t1'").get() as {
+      status: string;
+      error: string | null;
+    };
+    expect(run.status).toBe("error");
+    expect(run.error).toContain("post-bind evidence read failed");
     db.close();
   });
 });

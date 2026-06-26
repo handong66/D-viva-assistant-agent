@@ -5,6 +5,7 @@ import { generatePrepPack } from "./prep-pack";
 import {
   createGenerationRun, finalizeGenerationRun, getThesisEvidence,
   insertGeneratedPrepItem, bindPrepEvidence, getBoundEvidence, applyValidation,
+  EvidenceBindingError,
 } from "../../db/repository";
 import { validatePrepItem, type PrepItemType } from "../evidence/validator";
 
@@ -25,9 +26,13 @@ export async function runPrepPackGeneration(
       // Narrow catch: ONLY bindPrepEvidence may fail expectedly (bad/cross-thesis
       // citation). Validator/DB errors propagate to the outer catch.
       let bound = true;
+      const evidenceUnitIds = Array.from(new Set(item.evidence_unit_ids));
       try {
-        bindPrepEvidence(db, prepId, item.evidence_unit_ids);
+        bindPrepEvidence(db, prepId, evidenceUnitIds);
       } catch (bindErr) {
+        if (!(bindErr instanceof EvidenceBindingError)) {
+          throw bindErr;
+        }
         applyValidation(db, prepId, { validationStatus: "failed", supportKind: "existence", reason: bindErr instanceof Error ? bindErr.message : "bind failed" });
         bound = false;
       }
