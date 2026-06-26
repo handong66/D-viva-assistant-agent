@@ -276,3 +276,63 @@ export function insertPracticeRunWithEvidence(
   tx();
   return id;
 }
+
+export const REVIEW_DIMENSIONS = ["evidence", "clarity", "completeness", "boundary", "delivery"] as const;
+export const REVIEW_SCORE_THRESHOLD = 2;
+
+export function getPracticeRunForJudge(
+  db: DB,
+  practiceRunId: string,
+): { thesisId: string; question: string; answerText: string | null; transcript: string | null } | undefined {
+  const row = db
+    .prepare("SELECT thesis_id, question, answer_text, transcript FROM practice_run WHERE id=?")
+    .get(practiceRunId) as { thesis_id: string; question: string; answer_text: string | null; transcript: string | null } | undefined;
+  if (!row) return undefined;
+  return { thesisId: row.thesis_id, question: row.question, answerText: row.answer_text, transcript: row.transcript };
+}
+
+/** Persist a judge result onto the practice_run AND refresh its review queue, atomically.
+ *  Returns the dimensions that were pushed to review (score <= REVIEW_SCORE_THRESHOLD). */
+export function applyJudgeResult(
+  db: DB,
+  input: {
+    practiceRunId: string;
+    thesisId: string;
+    scores: Record<string, number>;
+    diagnosis: string;
+    rewrite: string;
+    followUps: string[];
+  },
+): string[] {
+  const reviewed: { dim: string; score: number }[] = [];
+  for (const dim of REVIEW_DIMENSIONS) {
+    const score = input.scores[dim];
+    if (score === undefined) throw new Error(`missing score for dimension: ${dim}`);
+    if (!Number.isInteger(score) || score < 1 || score > 5) {
+      throw new Error(`score for ${dim} must be an integer 1-5, got: ${score}`);
+    }
+    if (score <= REVIEW_SCORE_THRESHOLD) reviewed.push({ dim, score });
+  }
+
+  const tx = db.transaction(() => {
+    db.prepare(
+      `UPDATE practice_run SET scores=@scores, diagnosis=@diagnosis, rewrite=@rewrite, follow_ups=@follow_ups
+        WHERE id=@id`,
+    ).run({
+      id: input.practiceRunId,
+      scores: JSON.stringify(input.scores),
+      diagnosis: input.diagnosis,
+      rewrite: input.rewrite,
+      follow_ups: JSON.stringify(input.followUps),
+    });
+    db.prepare("DELETE FROM review_item WHERE practice_run_id=?").run(input.practiceRunId);
+    const ins = db.prepare(
+      "INSERT INTO review_item (id, thesis_id, practice_run_id, dimension, score, reason) VALUES (?,?,?,?,?,?)",
+    );
+    for (const r of reviewed) {
+      ins.run(randomUUID(), input.thesisId, input.practiceRunId, r.dim, r.score, input.diagnosis);
+    }
+  });
+  tx();
+  return reviewed.map((r) => r.dim);
+}
