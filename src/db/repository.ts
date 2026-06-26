@@ -1,6 +1,7 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
 import type { Database as DB } from "better-sqlite3";
+import { VALIDATOR_VERSION, type EvidenceText, type Verdict } from "../lib/evidence/validator";
 
 export type NewThesis = {
   id: string;
@@ -100,5 +101,39 @@ export function logAiCall(db: DB, entry: AiCallLogInput): void {
     latency_ms: entry.latencyMs,
     status: entry.status,
     error: entry.error ?? null,
+  });
+}
+
+export function getBoundEvidence(db: DB, prepItemId: string): EvidenceText[] {
+  return db
+    .prepare(
+      `SELECT eu.id AS id, eu.text AS text
+         FROM prep_item_evidence
+         JOIN evidence_unit eu ON eu.id = prep_item_evidence.evidence_unit_id
+        WHERE prep_item_evidence.prep_item_id = ?
+        ORDER BY eu.id`,
+    )
+    .all(prepItemId) as EvidenceText[];
+}
+
+export function applyValidation(db: DB, prepItemId: string, verdict: Verdict): void {
+  db.prepare(
+    `UPDATE prep_item
+        SET status = CASE
+              WHEN @validation_status = 'passed' THEN 'verified'
+              WHEN @validation_status = 'needs_review' THEN 'needs_review'
+              ELSE 'unsafe'
+            END,
+            validation_status = @validation_status,
+            support_kind = @support_kind,
+            validator_version = @validator_version,
+            verified_at = CASE WHEN @validation_status = 'passed' THEN datetime('now') ELSE NULL END,
+            updated_at = datetime('now')
+      WHERE id = @id`,
+  ).run({
+    id: prepItemId,
+    validation_status: verdict.validationStatus,
+    support_kind: verdict.supportKind,
+    validator_version: VALIDATOR_VERSION,
   });
 }
