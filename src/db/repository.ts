@@ -3,6 +3,10 @@ import { randomUUID } from "node:crypto";
 import type { Database as DB } from "better-sqlite3";
 import { VALIDATOR_VERSION, type EvidenceText, type Verdict } from "../lib/evidence/validator";
 
+export class EvidenceBindingError extends Error {
+  constructor(message: string) { super(message); this.name = "EvidenceBindingError"; }
+}
+
 export type NewThesis = {
   id: string;
   title: string;
@@ -36,7 +40,7 @@ function bindEvidence(
   const parent = db.prepare(`SELECT thesis_id FROM ${parentTable} WHERE id=?`).get(parentId) as
     | { thesis_id: string }
     | undefined;
-  if (!parent) throw new Error(`${parentTable} not found: ${parentId}`);
+  if (!parent) throw new EvidenceBindingError(`${parentTable} not found: ${parentId}`);
   const insert = db.prepare(
     `INSERT INTO ${joinTable} (${parentCol}, evidence_unit_id) VALUES (?,?)`,
   );
@@ -45,9 +49,9 @@ function bindEvidence(
       const ev = db.prepare("SELECT thesis_id FROM evidence_unit WHERE id=?").get(eid) as
         | { thesis_id: string }
         | undefined;
-      if (!ev) throw new Error(`evidence_unit not found: ${eid}`);
+      if (!ev) throw new EvidenceBindingError(`evidence_unit not found: ${eid}`);
       if (ev.thesis_id !== parent.thesis_id) {
-        throw new Error(
+        throw new EvidenceBindingError(
           `evidence ${eid} not from the same thesis as ${parentTable} ${parentId}`,
         );
       }
@@ -117,6 +121,12 @@ export function getBoundEvidence(db: DB, prepItemId: string): EvidenceText[] {
 }
 
 export function applyValidation(db: DB, prepItemId: string, verdict: Verdict): void {
+  const validationStatus: Verdict["validationStatus"] =
+    verdict.validationStatus === "passed" &&
+    (db.prepare("SELECT count(*) c FROM prep_item_evidence WHERE prep_item_id = ?").get(prepItemId) as { c: number }).c === 0
+      ? "needs_review"
+      : verdict.validationStatus;
+
   db.prepare(
     `UPDATE prep_item
         SET status = CASE
@@ -132,7 +142,7 @@ export function applyValidation(db: DB, prepItemId: string, verdict: Verdict): v
       WHERE id = @id`,
   ).run({
     id: prepItemId,
-    validation_status: verdict.validationStatus,
+    validation_status: validationStatus,
     support_kind: verdict.supportKind,
     validator_version: VALIDATOR_VERSION,
   });
@@ -176,4 +186,44 @@ export function getThesisChunks(db: DB, thesisId: string): { ord: number; text: 
 }
 export function countEvidence(db: DB, thesisId: string): number {
   return (db.prepare("SELECT count(*) c FROM evidence_unit WHERE thesis_id=?").get(thesisId) as { c: number }).c;
+}
+
+export function createGenerationRun(db: DB, thesisId: string, kind: "prep_pack" | "prep_item" | "regenerate"): string {
+  const id = randomUUID();
+  db.prepare(
+    "INSERT INTO generation_run (id, thesis_id, kind, status) VALUES (?,?,?,'running')",
+  ).run(id, thesisId, kind);
+  return id;
+}
+
+export function finalizeGenerationRun(db: DB, runId: string, status: "done" | "error" | "canceled", error?: string): void {
+  db.prepare("UPDATE generation_run SET status=?, error=? WHERE id=?").run(status, error ?? null, runId);
+}
+
+export function getThesisEvidence(db: DB, thesisId: string): { id: string; text: string }[] {
+  // Thesis reading order: order by chunk ord then char span, not by random UUID.
+  return db
+    .prepare(
+      `SELECT eu.id AS id, eu.text AS text
+         FROM evidence_unit eu JOIN thesis_chunk tc ON tc.id = eu.chunk_id
+        WHERE eu.thesis_id = ? ORDER BY tc.ord, eu.char_start, eu.id`,
+    )
+    .all(thesisId) as { id: string; text: string }[];
+}
+
+export function insertGeneratedPrepItem(
+  db: DB,
+  item: { thesisId: string; generationRunId: string; type: string; title: string; claim_text: string | null; evidence_quote: string | null; value_numeric: number | null; unit: string | null },
+): string {
+  const id = randomUUID();
+  db.prepare(
+    `INSERT INTO prep_item (id, thesis_id, generation_run_id, type, title, claim_text, evidence_quote, value_numeric, unit,
+        status, validation_status, validator_version, source)
+     VALUES (@id,@thesis_id,@generation_run_id,@type,@title,@claim_text,@evidence_quote,@value_numeric,@unit,
+        'needs_review','needs_review','0','generated')`,
+  ).run({
+    id, thesis_id: item.thesisId, generation_run_id: item.generationRunId, type: item.type, title: item.title,
+    claim_text: item.claim_text, evidence_quote: item.evidence_quote, value_numeric: item.value_numeric, unit: item.unit,
+  });
+  return id;
 }
