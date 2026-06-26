@@ -10,11 +10,19 @@ export type IngestInput =
   | { title: string; author?: string; sourceKind: "md" | "txt"; content: string }
   | { title: string; author?: string; sourceKind: "pdf"; data: Uint8Array };
 
+export class IngestQualityError extends Error {
+  constructor(public report: QualityReport) {
+    super("Ingest quality check failed");
+  }
+}
+
 export async function ingestThesis(db: DB, input: IngestInput): Promise<{ thesisId: string; report: QualityReport }> {
   const extracted =
     input.sourceKind === "pdf" ? await extractPdf(input.data)
     : input.sourceKind === "md" ? extractMarkdown(input.content)
     : extractText(input.content);
+
+  if (!extracted.report.ok) throw new IngestQualityError(extracted.report);
 
   const chunks = chunkParagraphs(extracted.paragraphs);
   const thesisId = randomUUID();

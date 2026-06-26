@@ -1,13 +1,24 @@
-import { describe, it, expect } from "vitest";
-import { createDb } from "./client";
+import { afterEach, describe, expect, it } from "vitest";
+import { getDb } from "./client";
 
-describe("createDb", () => {
-  it("opens an in-memory db with foreign_keys ON", () => {
-    const db = createDb(":memory:");
-    expect(db.pragma("foreign_keys", { simple: true })).toBe(1);
-    db.exec("CREATE TABLE t (id INTEGER PRIMARY KEY)");
-    db.prepare("INSERT INTO t (id) VALUES (?)").run(1);
-    expect(db.prepare("SELECT count(*) c FROM t").get()).toEqual({ c: 1 });
-    db.close();
+const g = globalThis as unknown as { __vivaDb?: import("better-sqlite3").Database };
+
+afterEach(() => {
+  g.__vivaDb?.close?.();
+  delete g.__vivaDb;
+});
+
+describe("getDb", () => {
+  it("fresh :memory: db has schema after getDb()", () => {
+    delete g.__vivaDb;
+    const db = getDb(":memory:");
+    expect(db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='thesis'").get()).toEqual({
+      name: "thesis",
+    });
+  });
+
+  it("getDb returns same singleton on repeat calls", () => {
+    delete g.__vivaDb;
+    expect(getDb(":memory:")).toBe(getDb(":memory:"));
   });
 });
