@@ -59,7 +59,10 @@ function numericMatches(value: number, unit: string | null, bound: EvidenceText[
       if (n === null || Math.abs(n - value) >= NUM_EPS) continue; // value compared numerically, not as substring
       if (!wantUnit) return true;
       const rest = t.slice((m.index ?? 0) + m[0].length).replace(/^\s+/, "");
-      if (rest.startsWith(wantUnit)) return true; // unit must sit right after the number token
+      if (rest.startsWith(wantUnit)) {
+        const after = rest.charAt(wantUnit.length);
+        if (after === "" || !/[a-z0-9]/.test(after)) return true; // unit must sit right after the number token
+      }
     }
   }
   return false;

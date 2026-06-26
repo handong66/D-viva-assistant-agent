@@ -62,6 +62,18 @@ describe("validatePrepItem L3 numeric", () => {
     const v = validatePrepItem(item, [ev("5 metres long")]);
     expect(v.validationStatus).toBe("failed");
   });
+  it("does NOT match a unit as a prefix of another unit token (m vs mg)", () => {
+    const item = { ...base, type: "key_number" as const, value_numeric: 5, unit: "m" };
+    expect(validatePrepItem(item, [ev("the dose was 5 mg")]).validationStatus).toBe("failed");
+  });
+  it("does NOT match a unit as a prefix of a longer word (m vs metres)", () => {
+    const item = { ...base, type: "key_number" as const, value_numeric: 5, unit: "m" };
+    expect(validatePrepItem(item, [ev("the rod is 5 metres long")]).validationStatus).toBe("failed");
+  });
+  it("matches a unit when the unit token is bounded", () => {
+    const item = { ...base, type: "key_number" as const, value_numeric: 5, unit: "m" };
+    expect(validatePrepItem(item, [ev("the rod is 5 m long")]).validationStatus).toBe("passed");
+  });
   it("does NOT match a value as a substring of a larger number (5 vs 1500)", () => {
     const item = { ...base, type: "key_number" as const, value_numeric: 5, unit: null };
     expect(validatePrepItem(item, [ev("the figure was 1500")]).validationStatus).toBe("failed");
