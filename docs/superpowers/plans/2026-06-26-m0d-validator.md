@@ -16,21 +16,22 @@
 
 ## Validation rules (the contract)
 
-`VALIDATOR_VERSION = "1"`. Text matching normalizes both sides: lowercase, collapse all whitespace runs to a single space, trim.
+`VALIDATOR_VERSION = "1"`. **Core principle (Codex P1-1): `passed`/`verified` is allowed ONLY when the thing checked deterministically IS the item's claim** — not merely that some quoted/numeric string appears in evidence. So only `key_number` (the number is the claim) and `citation_card` (the quote is the claim) can normally reach `passed`; a prose item reaches `passed` only if its `claim_text` is *verbatim* the matched quote.
+
+`normalize(s)` (applied to both sides before matching): **`NFKC`** → drop soft hyphens (`­`) → unify curly quotes (`‘’`→`'`, `“”`→`"`) and dashes (`‐-―`→`-`) → lowercase → collapse whitespace (incl. NBSP) to one space → trim. (Codex P2 — robust for PDF-derived evidence.)
 
 Given a `prep_item` and its bound `evidence_unit[]` (`bound`):
 
-- **L1 — existence/cardinality.** `bound.length >= 1`. For `type ∈ {key_number, citation_card}` evidence is mandatory (min 1); if absent → `failed`.
-- **L2 — exact quote.** If `evidence_quote` is set, its normalized form must be a substring of some bound evidence's normalized `text`.
-- **L3 — numeric.** For `type = key_number`: `value_numeric` (rendered) and, when present, `unit` must both appear in some bound evidence's normalized text.
+- **L1 — existence/cardinality.** `bound.length >= 1`. For `type ∈ {key_number, citation_card}` evidence is mandatory; if absent → `failed`.
+- **L2 — exact quote.** A quote *matches* when `normalize(evidence_quote)` is a non-empty substring of some `normalize(bound.text)`.
+- **L3 — numeric.** Tokenize numbers in each `normalize(bound.text)`, parse each token to a Number (strip thousands separators; tolerate trailing-zero formatting via epsilon), and compare to `value_numeric`; if `unit` is set it must appear immediately after the matched number token. (Codex P1-2 — no substring false positives like `5`⊂`1500`, and `81.3`≡`81.30`.)
 
 Verdict (`validationStatus`, `supportKind`):
-- `key_number`: L1 then L3. Pass → `passed`/`numeric`. Evidence present but number not found → `failed`/`numeric`. No evidence → `failed`.
-- `citation_card`: L1 then L2 (a citation_card must carry an `evidence_quote`). Pass → `passed`/`exact_quote`. Quote not found → `failed`/`exact_quote`. No evidence/quote → `failed`.
-- any type with an `evidence_quote` set: L2 applies; matched → `passed`/`exact_quote`; set but unmatched → `failed`/`exact_quote`.
-- `digest`/`qa`/`hostile`/`theory_card` with no exact quote: L1 only → `needs_review`/`existence` (semantic support is not deterministically provable; that's L4/human, not a `verified` gate).
+- `key_number`: L1 then **L3 only**. Number (+unit) matched → `passed`/`numeric`. Evidence present but not matched → `failed`/`numeric`. No evidence → `failed`/`numeric`. (The quote, if any, is not what certifies a number.)
+- `citation_card`: must carry an `evidence_quote`. L1 then L2. Matched → `passed`/`exact_quote`. Quote unmatched, or missing quote/evidence → `failed`/`exact_quote`.
+- `digest`/`qa`/`hostile`/`theory_card`: `passed`/`exact_quote` **only if** `normalize(claim_text) === normalize(evidence_quote)` *and* that quote matches bound evidence (the claim is verbatim the source). Otherwise, with ≥1 evidence → `needs_review`/`existence`; a provided-but-unmatched quote → `failed`/`exact_quote`. Semantic paraphrase support is L4/human, never a deterministic `verified`.
 
-`passed` ⇒ eligible for `prep_item.status = 'verified'`. `needs_review` ⇒ `status` stays/needs_review. `failed` ⇒ `status = 'unsafe'`. The validator returns the verdict; persistence (Task 5) maps it onto `validation_status` + `status`.
+`passed` ⇒ `prep_item.status = 'verified'`. `needs_review` ⇒ `needs_review`. `failed` ⇒ `unsafe`. Persistence (Task 5) maps the verdict onto `validation_status` + `status` and clears `verified_at` unless `passed`.
 
 ---
 
@@ -91,7 +92,15 @@ export type EvidenceText = { id: string; text: string };
 export type Verdict = { validationStatus: ValidationStatus; supportKind: SupportKind; reason: string };
 
 export function normalize(s: string): string {
-  return s.toLowerCase().replace(/\s+/g, " ").trim();
+  return s
+    .normalize("NFKC")
+    .replace(/­/g, "") // soft hyphen
+    .replace(/[‘’]/g, "'") // curly single quotes
+    .replace(/[“”]/g, '"') // curly double quotes
+    .replace(/[‐-―]/g, "-") // hyphens/dashes
+    .toLowerCase()
+    .replace(/\s+/g, " ") // \s matches NBSP too
+    .trim();
 }
 
 function fail(reason: string, supportKind: SupportKind): Verdict {
@@ -125,45 +134,68 @@ git commit -m "feat(m0d): evidence validator L1 existence/cardinality + types"
 - [ ] **Step 1: Failing tests** — add to `validator.test.ts`:
 ```ts
 describe("validatePrepItem L2 exact quote", () => {
-  it("passes when evidence_quote is a normalized substring of bound text", () => {
-    const item = { ...base, type: "citation_card" as const, evidence_quote: "Smith  2020 found X" };
+  it("citation_card passes when its quote matches bound text (normalized)", () => {
+    const item = { ...base, type: "citation_card" as const, claim_text: "Smith 2020 found X", evidence_quote: "Smith  2020 found X" };
     const v = validatePrepItem(item, [ev("As Smith 2020 found X in their study")]);
     expect(v).toEqual({ validationStatus: "passed", supportKind: "exact_quote", reason: expect.any(String) });
   });
-  it("fails when evidence_quote is not found", () => {
-    const item = { ...base, type: "citation_card" as const, evidence_quote: "not present" };
-    const v = validatePrepItem(item, [ev("something else")]);
+  it("citation_card fails when its quote is not found", () => {
+    const v = validatePrepItem({ ...base, type: "citation_card" as const, evidence_quote: "not present" }, [ev("something else")]);
     expect(v.validationStatus).toBe("failed");
-    expect(v.supportKind).toBe("exact_quote");
   });
-  it("a digest WITH a matched quote upgrades to passed/exact_quote", () => {
-    const item = { ...base, type: "digest" as const, evidence_quote: "key finding" };
+  it("citation_card without an evidence_quote fails", () => {
+    expect(validatePrepItem({ ...base, type: "citation_card" as const }, [ev("anything")]).validationStatus).toBe("failed");
+  });
+  it("prose item whose quote matches but claim is a PARAPHRASE -> needs_review (not verified)", () => {
+    const item = { ...base, type: "digest" as const, claim_text: "the study found a clear result", evidence_quote: "key finding" };
+    expect(validatePrepItem(item, [ev("the key finding was clear")]).validationStatus).toBe("needs_review");
+  });
+  it("prose item whose claim_text IS verbatim the matched quote -> passed/exact_quote", () => {
+    const item = { ...base, type: "digest" as const, claim_text: "key finding", evidence_quote: "key finding" };
     const v = validatePrepItem(item, [ev("the key finding was clear")]);
     expect(v).toEqual({ validationStatus: "passed", supportKind: "exact_quote", reason: expect.any(String) });
+  });
+  it("prose item with a quote that does NOT match evidence -> failed", () => {
+    expect(validatePrepItem({ ...base, type: "qa" as const, evidence_quote: "absent phrase" }, [ev("unrelated text")]).validationStatus).toBe("failed");
   });
 });
 ```
 
 - [ ] **Step 2: Run — FAIL.**
 
-- [ ] **Step 3: Implement** — add the quote helper and wire it into `validatePrepItem` (replace the default tail). Add:
+- [ ] **Step 3: Implement** — add helpers + the L2 block. Add near `fail`:
 ```ts
+function pass(supportKind: SupportKind, reason: string): Verdict {
+  return { validationStatus: "passed", supportKind, reason };
+}
+function review(supportKind: SupportKind, reason: string): Verdict {
+  return { validationStatus: "needs_review", supportKind, reason };
+}
 function quoteMatches(quote: string, bound: EvidenceText[]): boolean {
   const q = normalize(quote);
   return q.length > 0 && bound.some((e) => normalize(e.text).includes(q));
 }
 ```
-In `validatePrepItem`, after the L1 block, before the default return:
+In `validatePrepItem`, after the L1 block, replace the default tail with the L2 logic (the `key_number` numeric branch from Task 3 is inserted *before* this, so key_number never reaches here):
 ```ts
-  // L2 — exact quote (applies whenever an evidence_quote is provided, mandatory for citation_card)
-  if (item.type === "citation_card" && !item.evidence_quote) {
-    return fail("citation_card requires an evidence_quote", "exact_quote");
+  // L2 — exact quote. Only the claim itself being provable yields `passed`.
+  if (item.type === "citation_card") {
+    if (!item.evidence_quote) return fail("citation_card requires an evidence_quote", "exact_quote");
+    return quoteMatches(item.evidence_quote, bound)
+      ? pass("exact_quote", "citation quote found in evidence")
+      : fail("citation quote not found in evidence", "exact_quote");
   }
   if (item.evidence_quote) {
-    return quoteMatches(item.evidence_quote, bound)
-      ? { validationStatus: "passed", supportKind: "exact_quote", reason: "evidence_quote found in bound evidence" }
-      : fail("evidence_quote not found in bound evidence", "exact_quote");
+    if (!quoteMatches(item.evidence_quote, bound)) {
+      return fail("evidence_quote not found in bound evidence", "exact_quote");
+    }
+    // a matched quote only certifies the claim when the claim IS that quote
+    if (item.claim_text && normalize(item.claim_text) === normalize(item.evidence_quote)) {
+      return pass("exact_quote", "claim is verbatim the matched quote");
+    }
+    return review("existence", "quote matches but claim is a paraphrase — not deterministically verified");
   }
+  return review("existence", "bound evidence present; prose claim not deterministically provable");
 ```
 
 - [ ] **Step 4: Run — PASS.** Commit:
@@ -197,6 +229,18 @@ describe("validatePrepItem L3 numeric", () => {
     const v = validatePrepItem(item, [ev("5 metres long")]);
     expect(v.validationStatus).toBe("failed");
   });
+  it("does NOT match a value as a substring of a larger number (5 vs 1500)", () => {
+    const item = { ...base, type: "key_number" as const, value_numeric: 5, unit: null };
+    expect(validatePrepItem(item, [ev("the figure was 1500")]).validationStatus).toBe("failed");
+  });
+  it("matches across trailing-zero formatting (81.3 vs 81.30)", () => {
+    const item = { ...base, type: "key_number" as const, value_numeric: 81.3, unit: "%" };
+    expect(validatePrepItem(item, [ev("reported 81.30% accuracy")]).validationStatus).toBe("passed");
+  });
+  it("matches comma-grouped thousands (8130 vs 8,130)", () => {
+    const item = { ...base, type: "key_number" as const, value_numeric: 8130, unit: null };
+    expect(validatePrepItem(item, [ev("8,130 sentences were used")]).validationStatus).toBe("passed");
+  });
 });
 ```
 
@@ -204,26 +248,41 @@ describe("validatePrepItem L3 numeric", () => {
 
 - [ ] **Step 3: Implement** — add the numeric helper and a `key_number` branch in `validatePrepItem` (place the key_number branch BEFORE the generic L2 quote block, since key_number is numeric-validated):
 ```ts
+const NUM_EPS = 1e-9;
+// Parse one number token to a Number, stripping thousands-grouping commas (e.g. 8,130 -> 8130).
+// Returns null for anything that isn't a plain integer/decimal after cleaning (e.g. "81,3", "1.2.3").
+function parseNumToken(tok: string): number | null {
+  const cleaned = tok.replace(/,(?=\d{3}(\D|$))/g, "");
+  if (!/^\d+(\.\d+)?$/.test(cleaned)) return null;
+  const n = Number(cleaned);
+  return Number.isFinite(n) ? n : null;
+}
 function numericMatches(value: number, unit: string | null, bound: EvidenceText[]): boolean {
-  // Render the value plainly; match against normalized evidence text. Unit (if any) must also appear.
-  const valStr = String(value);
-  return bound.some((e) => {
+  const wantUnit = unit && unit.trim() ? normalize(unit) : null;
+  const re = /\d[\d.,]*\d|\d/g; // whole number tokens; no \s so separate numbers don't merge
+  for (const e of bound) {
     const t = normalize(e.text);
-    if (!t.includes(valStr)) return false;
-    if (unit && unit.trim()) return t.includes(normalize(unit));
-    return true;
-  });
+    for (const m of t.matchAll(re)) {
+      const n = parseNumToken(m[0]);
+      if (n === null || Math.abs(n - value) >= NUM_EPS) continue; // value compared numerically, not as substring
+      if (!wantUnit) return true;
+      const rest = t.slice((m.index ?? 0) + m[0].length).replace(/^\s+/, "");
+      if (rest.startsWith(wantUnit)) return true; // unit must sit right after the number token
+    }
+  }
+  return false;
 }
 ```
-Insert in `validatePrepItem`, immediately after the L1 block:
+Insert in `validatePrepItem`, immediately after the L1 block (before the L2 block from Task 2):
 ```ts
   if (item.type === "key_number") {
     if (item.value_numeric === null) return fail("key_number missing value_numeric", "numeric");
     return numericMatches(item.value_numeric, item.unit, bound)
-      ? { validationStatus: "passed", supportKind: "numeric", reason: "value (and unit) found in bound evidence" }
+      ? pass("numeric", "value (and unit) found in bound evidence")
       : fail("value not found in bound evidence", "numeric");
   }
 ```
+> Known M0d limitation (acceptable; flag for the gate): European decimal comma ("81,3" meaning 81.3) is treated as non-numeric and won't match — academic English uses period decimals. Revisit if ingest surfaces comma-decimal sources.
 
 - [ ] **Step 4: Run — PASS.** Commit:
 ```bash
@@ -316,6 +375,18 @@ describe("validation repository", () => {
     expect((db.prepare("SELECT status FROM prep_item WHERE id='p1'").get() as any).status).toBe("unsafe");
     db.close();
   });
+
+  it("clears verified_at when a previously-verified item is re-validated down (P1-3)", () => {
+    const db = makeTestDb(); seed(db);
+    bindPrepEvidence(db, "p1", ["e1"]);
+    applyValidation(db, "p1", { validationStatus: "passed", supportKind: "numeric", reason: "x" });
+    expect((db.prepare("SELECT verified_at FROM prep_item WHERE id='p1'").get() as any).verified_at).not.toBeNull();
+    applyValidation(db, "p1", { validationStatus: "needs_review", supportKind: "existence", reason: "x" });
+    const row = db.prepare("SELECT status, verified_at FROM prep_item WHERE id='p1'").get() as any;
+    expect(row.status).toBe("needs_review");
+    expect(row.verified_at).toBeNull();
+    db.close();
+  });
 });
 ```
 
@@ -350,7 +421,7 @@ export function applyValidation(db: DB, prepItemId: string, verdict: Verdict): v
             validation_status = @validation_status,
             support_kind = @support_kind,
             validator_version = @validator_version,
-            verified_at = CASE WHEN @validation_status = 'passed' THEN datetime('now') ELSE verified_at END,
+            verified_at = CASE WHEN @validation_status = 'passed' THEN datetime('now') ELSE NULL END,
             updated_at = datetime('now')
       WHERE id = @id`,
   ).run({
@@ -381,5 +452,5 @@ git commit -m "feat(m0d): repository getBoundEvidence + applyValidation (verdict
 ## Self-Review Notes (author)
 
 - **Spec coverage:** §6 leveled validator (L1–L3 deterministic; L4 deferred to M2), only-provable→verified. Persistence maps verdict→`status`/`validation_status`/`support_kind`/`validator_version`.
-- **Known risk to flag for Codex:** numeric substring matching ("5" ⊂ "1500"). Mitigation candidates: match on word-boundary / token, or require the unit. The plan keeps it simple (substring + unit); the Codex gate should decide if that's strict enough for M0d or needs tokenization.
+- **Round-2 (Codex plan review applied):** P1-1 — only `key_number` (numeric) and `citation_card` (quote) reach `passed`; prose items need `claim_text` *verbatim* == matched quote, else `needs_review` (a matched-but-paraphrased quote is not a `verified` gate). P1-2 — numeric is **token-parsed and compared as a number** (no `5`⊂`1500`; tolerant of trailing-zero `81.30` and comma grouping `8,130`; unit must be adjacent). P1-3 — `verified_at` cleared on any non-`passed` re-validation. P2 — `normalize` adds NFKC + soft-hyphen/curly-quote/dash handling. Known limitation: European decimal comma (`81,3`) not matched (academic English uses period decimals).
 - **Deferred:** L4 LLM advisory (→ M2 prep-pack), the generation that produces `prep_item`s (→ M2).
