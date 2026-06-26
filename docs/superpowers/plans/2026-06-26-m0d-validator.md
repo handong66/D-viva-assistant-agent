@@ -24,7 +24,7 @@ Given a `prep_item` and its bound `evidence_unit[]` (`bound`):
 
 - **L1 — existence/cardinality.** `bound.length >= 1`. For `type ∈ {key_number, citation_card}` evidence is mandatory; if absent → `failed`.
 - **L2 — exact quote.** A quote *matches* when `normalize(evidence_quote)` is a non-empty substring of some `normalize(bound.text)`.
-- **L3 — numeric.** Tokenize numbers in each `normalize(bound.text)`, parse each token to a Number (strip thousands separators; tolerate trailing-zero formatting via epsilon), and compare to `value_numeric`; if `unit` is set it must appear immediately after the matched number token. (Codex P1-2 — no substring false positives like `5`⊂`1500`, and `81.3`≡`81.30`.)
+- **L3 — numeric.** Tokenize numbers in each `normalize(bound.text)`, parse each token to a Number (strip thousands separators; tolerate trailing-zero formatting via epsilon), and compare to `value_numeric`; if `unit` is set it must be the **next token after** the matched number — optionally separated by whitespace (so both `81.3%` and `5 kg` match, but `5 metres`≠unit `kg`). (Codex P1-2 — no substring false positives like `5`⊂`1500`, and `81.3`≡`81.30`.)
 
 Verdict (`validationStatus`, `supportKind`):
 - `key_number`: L1 then **L3 only**. Number (+unit) matched → `passed`/`numeric`. Evidence present but not matched → `failed`/`numeric`. No evidence → `failed`/`numeric`. (The quote, if any, is not what certifies a number.)
@@ -298,20 +298,27 @@ git commit -m "feat(m0d): validator L3 numeric matching for key_number"
 
 - [ ] **Step 1: Add a verdict-matrix test** covering each type at each outcome:
 ```ts
-describe("validatePrepItem verdict matrix", () => {
-  it("qa/hostile/theory_card with evidence but no quote -> needs_review/existence", () => {
-    for (const type of ["qa", "hostile", "theory_card"] as const) {
-      const v = validatePrepItem({ ...base, type }, [ev("supporting passage")]);
-      expect(v).toEqual({ validationStatus: "needs_review", supportKind: "existence", reason: expect.any(String) });
+describe("validatePrepItem verdict matrix (all 6 types)", () => {
+  it("prose types (digest/qa/hostile/theory_card) with evidence + no exact-claim quote -> needs_review/existence", () => {
+    for (const type of ["digest", "qa", "hostile", "theory_card"] as const) {
+      expect(validatePrepItem({ ...base, type }, [ev("supporting passage")])).toEqual({
+        validationStatus: "needs_review",
+        supportKind: "existence",
+        reason: expect.any(String),
+      });
     }
   });
-  it("only `passed` is verified-eligible; needs_review and failed are not", () => {
-    const passed = validatePrepItem({ ...base, type: "key_number", value_numeric: 7 }, [ev("the value 7 appears")]);
-    const review = validatePrepItem(base, [ev("prose")]);
-    const failed = validatePrepItem({ ...base, type: "key_number", value_numeric: 7 }, [ev("no number")]);
-    expect(passed.validationStatus).toBe("passed");
-    expect(review.validationStatus).toBe("needs_review");
-    expect(failed.validationStatus).toBe("failed");
+  it("key_number: passed when the number matches, failed when it does not", () => {
+    expect(validatePrepItem({ ...base, type: "key_number", value_numeric: 7 }, [ev("the value 7 appears")]).validationStatus).toBe("passed");
+    expect(validatePrepItem({ ...base, type: "key_number", value_numeric: 7 }, [ev("no number")]).validationStatus).toBe("failed");
+  });
+  it("citation_card: passed when quote matches, failed when missing or unmatched", () => {
+    expect(validatePrepItem({ ...base, type: "citation_card", evidence_quote: "cited line" }, [ev("a cited line here")]).validationStatus).toBe("passed");
+    expect(validatePrepItem({ ...base, type: "citation_card", evidence_quote: "x" }, [ev("y")]).validationStatus).toBe("failed");
+    expect(validatePrepItem({ ...base, type: "citation_card" }, [ev("y")]).validationStatus).toBe("failed");
+  });
+  it("only `passed` is verified-eligible", () => {
+    expect(validatePrepItem(base, [ev("prose")]).validationStatus).toBe("needs_review");
   });
 });
 ```
