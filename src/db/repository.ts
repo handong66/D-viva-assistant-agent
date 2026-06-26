@@ -369,3 +369,48 @@ export function getPrepItems(db: DB, thesisId: string): PrepItemRow[] {
     id: r.id, type: r.type, title: r.title, claimText: r.claim_text, status: r.status, validationStatus: r.validation_status,
   }));
 }
+
+export type PracticeRunView = {
+  id: string; question: string; questionKind: string;
+  answerText: string | null; transcript: string | null;
+  scores: Record<string, number> | null; diagnosis: string | null; rewrite: string | null; followUps: string[] | null;
+  status: string;
+};
+
+export function getLatestPracticeRun(db: DB, thesisId: string): PracticeRunView | undefined {
+  const row = db
+    .prepare(
+      `SELECT id, question, question_kind, answer_text, transcript, scores, diagnosis, rewrite, follow_ups, status
+         FROM practice_run WHERE thesis_id = ? ORDER BY created_at DESC, rowid DESC LIMIT 1`,
+    )
+    .get(thesisId) as
+    | { id: string; question: string; question_kind: string; answer_text: string | null; transcript: string | null; scores: string | null; diagnosis: string | null; rewrite: string | null; follow_ups: string | null; status: string }
+    | undefined;
+  if (!row) return undefined;
+  return {
+    id: row.id, question: row.question, questionKind: row.question_kind,
+    answerText: row.answer_text, transcript: row.transcript,
+    scores: row.scores ? (JSON.parse(row.scores) as Record<string, number>) : null,
+    diagnosis: row.diagnosis, rewrite: row.rewrite,
+    followUps: row.follow_ups ? (JSON.parse(row.follow_ups) as string[]) : null,
+    status: row.status,
+  };
+}
+
+export type ReviewItemView = { id: string; dimension: string; score: number; reason: string | null; question: string; practiceRunId: string };
+
+export function getReviewItems(db: DB, thesisId: string): ReviewItemView[] {
+  const rows = db
+    .prepare(
+      `SELECT ri.id, ri.dimension, ri.score, ri.reason, ri.practice_run_id, pr.question
+         FROM review_item ri JOIN practice_run pr ON pr.id = ri.practice_run_id AND pr.thesis_id = ri.thesis_id
+        WHERE ri.thesis_id = ? AND ri.status = 'open' AND ri.score <= 2
+        ORDER BY ri.score ASC, ri.created_at DESC, ri.id`,
+    )
+    .all(thesisId) as { id: string; dimension: string; score: number; reason: string | null; practice_run_id: string; question: string }[];
+  return rows.map((r) => ({ id: r.id, dimension: r.dimension, score: r.score, reason: r.reason, question: r.question, practiceRunId: r.practice_run_id }));
+}
+
+export function saveAnswer(db: DB, practiceRunId: string, answerText: string): void {
+  db.prepare("UPDATE practice_run SET answer_text = ? WHERE id = ?").run(answerText.trim(), practiceRunId);
+}
