@@ -16,6 +16,7 @@ const EnvSchema = z.object({
 export type Config = {
   aiFlag: boolean;
   hasProviderKey: boolean;
+  gatewayConfigured: boolean;
   effectiveAiEnabled: boolean;
   sttProvider: "off" | "browser" | "google_cloud";
   dbPath: string;
@@ -36,6 +37,7 @@ export function loadConfig(env: Record<string, string | undefined>): Config {
   return {
     aiFlag,
     hasProviderKey,
+    gatewayConfigured: Boolean(parsed.AI_GATEWAY_API_KEY),
     effectiveAiEnabled: aiFlag && hasProviderKey,
     sttProvider: parsed.STT_PROVIDER,
     dbPath: parsed.VIVA_DB_PATH,
