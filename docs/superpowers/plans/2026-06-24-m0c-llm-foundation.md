@@ -25,7 +25,7 @@
 - `src/db/repository.ts` — add `logAiCall()` (Task 6)
 - `src/lib/llm/transport.ts` — `aiSdkTransport()` (the only AI SDK touch-point) (Task 7)
 - `src/lib/llm/index.ts` — `getLlmClient()` factory + graceful degradation (Task 7)
-- `src/lib/llm/canary.live.test.ts` — env-gated cross-provider structured-output check (Task 8)
+- `src/lib/llm/canary.live.test.ts` — env-gated single-model live structured-output check (Task 8)
 - Tests colocated: `*.test.ts` per module.
 
 ---
@@ -614,7 +614,7 @@ import type { LlmTransport } from "./types";
 
 // NOTE: verify generateObject/generateText signatures against node_modules/ai/docs
 // (see vercel:ai-sdk skill). Models are AI Gateway "provider/model" strings; set
-// AI_GATEWAY_API_KEY (or provider keys) in the environment.
+// AI_GATEWAY_API_KEY in the environment (M0c is Gateway-only).
 export function aiSdkTransport(): LlmTransport {
   return {
     async object(model, schema, prompt, system) {
@@ -736,7 +736,7 @@ Expected: typecheck + lint + tests all green.
 - [ ] **Step 4: Commit**
 ```bash
 git add src/lib/llm/canary.live.test.ts
-git commit -m "test(m0c): env-gated cross-provider structured-output canary"
+git commit -m "test(m0c): env-gated single-model live structured-output canary"
 ```
 
 - [ ] **Step 5 (optional, manual): run the live canary once** if the gateway is configured:
