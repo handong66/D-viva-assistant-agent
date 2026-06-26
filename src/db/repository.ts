@@ -177,3 +177,43 @@ export function getThesisChunks(db: DB, thesisId: string): { ord: number; text: 
 export function countEvidence(db: DB, thesisId: string): number {
   return (db.prepare("SELECT count(*) c FROM evidence_unit WHERE thesis_id=?").get(thesisId) as { c: number }).c;
 }
+
+export function createGenerationRun(db: DB, thesisId: string, kind: "prep_pack" | "prep_item" | "regenerate"): string {
+  const id = randomUUID();
+  db.prepare(
+    "INSERT INTO generation_run (id, thesis_id, kind, status) VALUES (?,?,?,'running')",
+  ).run(id, thesisId, kind);
+  return id;
+}
+
+export function finalizeGenerationRun(db: DB, runId: string, status: "done" | "error" | "canceled", error?: string): void {
+  db.prepare("UPDATE generation_run SET status=?, error=? WHERE id=?").run(status, error ?? null, runId);
+}
+
+export function getThesisEvidence(db: DB, thesisId: string): { id: string; text: string }[] {
+  // Thesis reading order: order by chunk ord then char span, not by random UUID.
+  return db
+    .prepare(
+      `SELECT eu.id AS id, eu.text AS text
+         FROM evidence_unit eu JOIN thesis_chunk tc ON tc.id = eu.chunk_id
+        WHERE eu.thesis_id = ? ORDER BY tc.ord, eu.char_start, eu.id`,
+    )
+    .all(thesisId) as { id: string; text: string }[];
+}
+
+export function insertGeneratedPrepItem(
+  db: DB,
+  item: { thesisId: string; generationRunId: string; type: string; title: string; claim_text: string | null; evidence_quote: string | null; value_numeric: number | null; unit: string | null },
+): string {
+  const id = randomUUID();
+  db.prepare(
+    `INSERT INTO prep_item (id, thesis_id, generation_run_id, type, title, claim_text, evidence_quote, value_numeric, unit,
+        status, validation_status, validator_version, source)
+     VALUES (@id,@thesis_id,@generation_run_id,@type,@title,@claim_text,@evidence_quote,@value_numeric,@unit,
+        'needs_review','needs_review','0','generated')`,
+  ).run({
+    id, thesis_id: item.thesisId, generation_run_id: item.generationRunId, type: item.type, title: item.title,
+    claim_text: item.claim_text, evidence_quote: item.evidence_quote, value_numeric: item.value_numeric, unit: item.unit,
+  });
+  return id;
+}
