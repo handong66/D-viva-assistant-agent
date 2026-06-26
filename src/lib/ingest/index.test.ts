@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { makeTestDb } from "../../test/db";
-import { ingestThesis } from "./index";
-import { countEvidence } from "../../db/repository";
+import { ingestThesis, IngestQualityError } from "./index";
+import { countEvidence, getActiveThesis } from "../../db/repository";
 
 describe("ingestThesis", () => {
   it("ingests a markdown thesis end-to-end and returns a thesisId + report", async () => {
@@ -17,10 +17,23 @@ describe("ingestThesis", () => {
     db.close();
   });
 
-  it("still ingests but flags a poor (too-short) source as not ok", async () => {
+  it("throws IngestQualityError and rolls back when source is too short", async () => {
     const db = makeTestDb();
-    const res = await ingestThesis(db, { title: "X", sourceKind: "txt", content: "tiny" });
-    expect(res.report.ok).toBe(false);
+    const goodMd = [
+      "First paragraph explains the thesis argument, method, and contribution with enough detail to meet the ingest quality gate.",
+      "Second paragraph describes the evidence base, analysis choices, and validation logic so the source has meaningful content.",
+      "Third paragraph summarises the findings, limitations, and viva preparation implications for a realistic imported thesis.",
+    ].join("\n\n");
+    const good = await ingestThesis(db, { title: "Good", sourceKind: "md", content: goodMd });
+    let caught: unknown;
+    try {
+      await ingestThesis(db, { title: "Bad", sourceKind: "txt", content: "too short" });
+    } catch (error) {
+      caught = error;
+    }
+    expect(caught).toBeInstanceOf(IngestQualityError);
+    expect(getActiveThesis(db)).toMatchObject({ id: good.thesisId, title: "Good" });
+    expect((db.prepare("SELECT count(*) c FROM thesis").get() as { c: number }).c).toBe(1);
     db.close();
   });
 });

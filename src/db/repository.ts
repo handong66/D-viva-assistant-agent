@@ -188,6 +188,16 @@ export function countEvidence(db: DB, thesisId: string): number {
   return (db.prepare("SELECT count(*) c FROM evidence_unit WHERE thesis_id=?").get(thesisId) as { c: number }).c;
 }
 
+export type ActiveThesis = { id: string; title: string; author: string | null; sourceKind: "pdf" | "md" | "txt"; createdAt: string };
+
+export function getActiveThesis(db: DB): ActiveThesis | undefined {
+  const row = db
+    .prepare("SELECT id, title, author, source_kind, created_at FROM thesis WHERE is_active=1 LIMIT 1")
+    .get() as { id: string; title: string; author: string | null; source_kind: "pdf" | "md" | "txt"; created_at: string } | undefined;
+  if (!row) return undefined;
+  return { id: row.id, title: row.title, author: row.author, sourceKind: row.source_kind, createdAt: row.created_at };
+}
+
 export function createGenerationRun(db: DB, thesisId: string, kind: "prep_pack" | "prep_item" | "regenerate"): string {
   const id = randomUUID();
   db.prepare(
