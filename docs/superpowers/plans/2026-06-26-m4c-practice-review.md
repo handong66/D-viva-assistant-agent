@@ -4,7 +4,7 @@
 
 **Goal:** Surface M3a (examiner) + M3b (judge) in the UI (§7 ⑤⑥): on `/practice`, generate an evidence-grounded question for the active thesis, type an answer, get 5-dimension scores + diagnosis + English rewrite + follow-ups; on `/review`, see the low-score (≤2) queue.
 
-**Architecture:** Reuse `runExaminerQuestion` + `runJudge` unchanged (both evidence-bound; judge sees only the run's bound evidence). The `/practice` page shows the **latest** `practice_run` for the active thesis (the "current" one); generating creates a new run → it becomes current; answering judges that latest run. Both AI actions guard `effectiveAiEnabled && gatewayConfigured` (mirroring `getLlmClient`) and degrade with a friendly message. The submit action ignores any client-supplied run id — it always judges the latest run server-side (no trust in form ids).
+**Architecture:** Reuse `runExaminerQuestion` + `runJudge` unchanged (both evidence-bound; judge sees only the run's bound evidence). The `/practice` page shows the **latest** `practice_run` for the active thesis (the "current" one); generating creates a new run → it becomes current; answering judges that latest run. Both AI actions guard `effectiveAiEnabled && gatewayConfigured` (mirroring `getLlmClient`) and degrade with a friendly message. The submit action carries the shown question's run id in the form and cross-checks it belongs to the active thesis before judging — so the answer binds to the exact question the user saw, and a tampered or cross-thesis id is rejected.
 
 **Tech Stack:** Next 16 App Router (RSC + Server Actions), React 19 (`useActionState`), Tailwind v4, better-sqlite3, vitest. AI only via `lib/llm` through the bridge; DB only via `appContext`; evidence-binding + judge grounding untouched.
 
