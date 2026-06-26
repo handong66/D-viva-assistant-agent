@@ -23,6 +23,8 @@ export type Config = {
   runLiveAi: boolean;
 };
 
+// Pure: every field derives from the injected `env` (getConfig passes process.env).
+// Kept pure for testability — do not read process.env directly here.
 export function loadConfig(env: Record<string, string | undefined>): Config {
   const parsed = EnvSchema.parse(env);
   const aiFlag = parsed.VIVA_AI_ENABLED === "true";
