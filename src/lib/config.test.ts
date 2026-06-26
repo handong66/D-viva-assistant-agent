@@ -7,6 +7,11 @@ describe("loadConfig", () => {
     expect(c.effectiveAiEnabled).toBe(false);
   });
 
+  it("gatewayConfigured reflects whether AI_GATEWAY_API_KEY is set", () => {
+    expect(loadConfig({ AI_GATEWAY_API_KEY: "gw-x" }).gatewayConfigured).toBe(true);
+    expect(loadConfig({}).gatewayConfigured).toBe(false);
+  });
+
   it("effectiveAiEnabled is true when flag true and a provider key resolves", () => {
     const c = loadConfig({ VIVA_AI_ENABLED: "true", ANTHROPIC_API_KEY: "sk-x" });
     expect(c.effectiveAiEnabled).toBe(true);

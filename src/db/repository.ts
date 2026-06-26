@@ -1,4 +1,5 @@
 import "server-only";
+import { randomUUID } from "node:crypto";
 import type { Database as DB } from "better-sqlite3";
 
 export type NewThesis = {
@@ -74,4 +75,30 @@ export function bindPracticeRunEvidence(
     practiceRunId,
     evidenceUnitIds,
   );
+}
+
+export type AiCallLogInput = {
+  thesisId?: string;
+  purpose: string;
+  provider: string;
+  model: string;
+  latencyMs: number;
+  status: "ok" | "error" | "timeout";
+  error?: string;
+};
+
+export function logAiCall(db: DB, entry: AiCallLogInput): void {
+  db.prepare(
+    `INSERT INTO ai_call_log (id, thesis_id, purpose, provider, model, latency_ms, status, error)
+     VALUES (@id, @thesis_id, @purpose, @provider, @model, @latency_ms, @status, @error)`,
+  ).run({
+    id: randomUUID(),
+    thesis_id: entry.thesisId ?? null,
+    purpose: entry.purpose,
+    provider: entry.provider,
+    model: entry.model,
+    latency_ms: entry.latencyMs,
+    status: entry.status,
+    error: entry.error ?? null,
+  });
 }

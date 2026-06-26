@@ -16,12 +16,15 @@ const EnvSchema = z.object({
 export type Config = {
   aiFlag: boolean;
   hasProviderKey: boolean;
+  gatewayConfigured: boolean;
   effectiveAiEnabled: boolean;
   sttProvider: "off" | "browser" | "google_cloud";
   dbPath: string;
   runLiveAi: boolean;
 };
 
+// Pure: every field derives from the injected `env` (getConfig passes process.env).
+// Kept pure for testability — do not read process.env directly here.
 export function loadConfig(env: Record<string, string | undefined>): Config {
   const parsed = EnvSchema.parse(env);
   const aiFlag = parsed.VIVA_AI_ENABLED === "true";
@@ -36,6 +39,7 @@ export function loadConfig(env: Record<string, string | undefined>): Config {
   return {
     aiFlag,
     hasProviderKey,
+    gatewayConfigured: Boolean(parsed.AI_GATEWAY_API_KEY),
     effectiveAiEnabled: aiFlag && hasProviderKey,
     sttProvider: parsed.STT_PROVIDER,
     dbPath: parsed.VIVA_DB_PATH,
