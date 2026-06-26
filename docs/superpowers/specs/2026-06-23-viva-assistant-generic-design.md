@@ -253,9 +253,9 @@ VIVA_DB_PATH=./data/viva.sqlite
 
 ## 18. 协作模型 — Claude ↔ Codex 互评（沿用"老流程"）
 
-沿用 academic-agent 的双向互评（契约见仓库根 `AGENTS.md`）：
-- Claude 实现（TDD、每任务提交，跑 `test`/`typecheck`/`lint`）；Codex 静态 review + `npx tsc --noEmit`。
-- **每里程碑设 Codex 互评 gate**：实现 → Codex 新线程 review → 核实每条结论（grep/读码）→ 双方+测试一致才算 Done。**绿测试 ≠ Done**。
+沿用 academic-agent 的双向互评（契约见仓库根 `AGENTS.md`）。GOAL-M0 原文：执行 = **Claude 编排+验证 + Codex 实现（仓库读写）**：
+- **Codex 实现**（TDD、每任务提交，经 `codex-companion task --write`）；**Claude 编排+验证**——跑 `npm test`/`typecheck`/`lint`（Codex 沙箱跑不了），读 diff 批判性 review，查 fidelity。
+- **双向回喂**：Claude 把发现回喂 Codex 修；Claude 自己改则让 Codex review 修订。一来一回直到 **双方+测试一致** 才算 Done。**绿测试 ≠ Done**。
 - 复查一律开新线程（`--fresh`）；Codex 启动注意 `service_tier` 须 fast/flex。
 - 可选：实现期开 stop 前强制评审 gate（`/codex:setup --enable-review-gate`）。
 

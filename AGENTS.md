@@ -11,9 +11,10 @@
 5. **测试默认不调真实模型。** 集成用 mock LLM；真实调用仅在 env gate（如 `RUN_LIVE_AI=1`）下。(spec §15)
 
 ## 协作模型 — Claude ↔ Codex 互评（沿用 academic-agent 老流程）
-双向互评，不是单向"Codex 写、Claude 跑测试"：
-- **Claude 实现**（TDD、最小实现、每任务一提交，跑 `test`/`typecheck`/`lint`）。**Codex 静态 review** + `npx tsc --noEmit`（Codex 沙箱跑不了 npm/vitest）。
-- **每里程碑设 Codex 互评 gate**：Claude 实现 → Codex review → 把发现回喂修复（谁改让对方再 review）→ **双方 + 测试三者一致**才算该段 Done。**绿测试 ≠ Done**。
+双向互评。GOAL-M0 原文：执行 = **Claude（编排 + 验证）+ Codex（实现，仓库完整读写）**。
+- **Codex 实现**（TDD、每任务一提交）——经 `codex-companion task --write`（仓库读写）。
+- **Claude 编排 + 验证**：跑 `npm test`/`typecheck`/`lint`（Codex 沙箱跑不了 npm/vitest，所以测试由 Claude 跑），读 diff 批判性 review，对照 spec/plan 查 fidelity，主动找 bug 类。
+- **回喂修复（双向）**：Claude 把 review 发现回喂 Codex 修；若 Claude 自己动手改，则让 Codex review Claude 的修订。一来一回直到 **双方 + 测试三者一致** 才算该段 Done。**绿测试 ≠ Done**。
 - **复查一律开新 Codex 线程（`--fresh`）**：续接旧线程会上下文漂移、虚构 bug；对 Codex 每条结论先 grep/读码核实再采纳。
 - Codex 启动注意 `service_tier` 必须 `fast`/`flex`（否则起不来）。
 
