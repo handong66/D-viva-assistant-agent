@@ -8,6 +8,8 @@ import { appContext } from "../../lib/server/context";
 
 export type ImportState = { error: string | null };
 
+const MAX_PDF_BYTES = 15 * 1024 * 1024; // keep in sync with serverActions.bodySizeLimit
+
 function messageFor(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
@@ -26,6 +28,8 @@ export async function importThesisAction(
     const file = formData.get("file");
 
     if (file instanceof File && file.size > 0) {
+      if (file.size > MAX_PDF_BYTES) throw new Error("PDF is too large (max 15 MB). Try pasting the text instead.");
+      if (file.type && file.type !== "application/pdf") throw new Error("Please upload a PDF file.");
       pdfData = new Uint8Array(await file.arrayBuffer());
     }
 
@@ -53,7 +57,8 @@ export async function importThesisAction(
           " chars",
       };
     }
-    return { error: messageFor(error) };
+    console.error("[importThesisAction] ingest failed:", error);
+    return { error: "Could not import the thesis. Please try again." };
   }
 
   revalidatePath("/");

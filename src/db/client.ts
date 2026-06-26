@@ -11,13 +11,20 @@ export function createDb(path: string): DB {
 }
 
 // HMR-safe singleton: reuse the connection across dev reloads.
-const g = globalThis as unknown as { __vivaDb?: DB };
+const g = globalThis as unknown as { __vivaDb?: DB; __vivaDbPath?: string };
 
 export function getDb(path: string): DB {
-  if (!g.__vivaDb) {
-    const db = createDb(path);
-    runMigrations(db);
-    g.__vivaDb = db;
+  if (g.__vivaDb) {
+    if (g.__vivaDbPath !== path) {
+      throw new Error(
+        `getDb already opened with path "${g.__vivaDbPath}"; refusing to reopen with "${path}"`,
+      );
+    }
+    return g.__vivaDb;
   }
+  const db = createDb(path);
+  runMigrations(db);
+  g.__vivaDb = db;
+  g.__vivaDbPath = path;
   return g.__vivaDb;
 }

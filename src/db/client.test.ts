@@ -1,11 +1,12 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { getDb } from "./client";
 
-const g = globalThis as unknown as { __vivaDb?: import("better-sqlite3").Database };
+const g = globalThis as unknown as { __vivaDb?: import("better-sqlite3").Database; __vivaDbPath?: string };
 
 afterEach(() => {
   g.__vivaDb?.close?.();
   delete g.__vivaDb;
+  delete g.__vivaDbPath;
 });
 
 describe("getDb", () => {
