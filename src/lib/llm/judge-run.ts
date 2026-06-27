@@ -24,6 +24,7 @@ export async function runJudge(
     practiceRunId,
     thesisId: run.thesisId,
     scores: result.scores,
+    reasons: result.reasons,
     diagnosis: result.diagnosis,
     rewrite: result.rewrite,
     followUps: result.follow_ups,

@@ -309,6 +309,7 @@ export function applyJudgeResult(
     practiceRunId: string;
     thesisId: string;
     scores: Record<string, number>;
+    reasons: Record<string, string>;
     diagnosis: string;
     rewrite: string;
     followUps: string[];
@@ -340,11 +341,19 @@ export function applyJudgeResult(
       "INSERT INTO review_item (id, thesis_id, practice_run_id, dimension, score, reason) VALUES (?,?,?,?,?,?)",
     );
     for (const r of reviewed) {
-      ins.run(randomUUID(), input.thesisId, input.practiceRunId, r.dim, r.score, input.diagnosis);
+      ins.run(randomUUID(), input.thesisId, input.practiceRunId, r.dim, r.score, input.reasons[r.dim]?.trim() || input.diagnosis);
     }
   });
   tx();
   return reviewed.map((r) => r.dim);
+}
+
+export type RunReviewItem = { dimension: string; score: number; reason: string | null };
+
+export function getRunReviewItems(db: DB, practiceRunId: string): RunReviewItem[] {
+  return db
+    .prepare("SELECT dimension, score, reason FROM review_item WHERE practice_run_id = ? AND score <= ? ORDER BY score ASC, dimension")
+    .all(practiceRunId, REVIEW_SCORE_THRESHOLD) as RunReviewItem[];
 }
 
 export type PrepItemRow = { id: string; type: string; title: string; claimText: string | null; status: string; validationStatus: string };

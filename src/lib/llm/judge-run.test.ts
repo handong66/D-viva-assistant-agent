@@ -19,6 +19,7 @@ function seedRun(db: ReturnType<typeof makeTestDb>, answer?: { text?: string; tr
 
 const result = {
   scores: { evidence: 2, clarity: 4, completeness: 4, boundary: 5, delivery: 4 },
+  reasons: { evidence: "no citation", clarity: "clear", completeness: "covers it", boundary: "scoped", delivery: "fluent" },
   diagnosis: "weak grounding", rewrite: "better answer", follow_ups: ["f1"],
 };
 
@@ -69,6 +70,7 @@ describe("runJudge", () => {
     const run = db.prepare("SELECT scores, diagnosis FROM practice_run WHERE id=?").get(id) as { scores: string; diagnosis: string };
     expect(JSON.parse(run.scores).evidence).toBe(2);
     expect((db.prepare("SELECT count(*) c FROM review_item WHERE practice_run_id=?").get(id) as { c: number }).c).toBe(1);
+    expect((db.prepare("SELECT reason FROM review_item WHERE practice_run_id=? AND dimension='evidence'").get(id) as { reason: string }).reason).toBe("no citation");
     db.close();
   });
 

@@ -12,13 +12,22 @@ export const JudgeScoresSchema = z.object({
   boundary: scoreSchema,
   delivery: scoreSchema,
 });
+export const JudgeReasonsSchema = z.object({
+  evidence: z.string().min(1),
+  clarity: z.string().min(1),
+  completeness: z.string().min(1),
+  boundary: z.string().min(1),
+  delivery: z.string().min(1),
+});
 export const JudgeResultSchema = z.object({
   scores: JudgeScoresSchema,
+  reasons: JudgeReasonsSchema,
   diagnosis: z.string().min(1),
   rewrite: z.string().min(1),
   follow_ups: z.array(z.string()),
 });
 export type JudgeScores = z.infer<typeof JudgeScoresSchema>;
+export type JudgeReasons = z.infer<typeof JudgeReasonsSchema>;
 export type JudgeResult = z.infer<typeof JudgeResultSchema>;
 
 export function buildJudgePrompt(args: {
@@ -37,6 +46,7 @@ export function buildJudgePrompt(args: {
     "- completeness: how fully it addresses the question",
     "- boundary: awareness of scope, assumptions, and limitations",
     "- delivery: quality of English expression",
+    "For EACH dimension, also return reasons.<dimension>: a one-sentence reason for that score (what was missing or strong), judged ONLY against the evidence above.",
     "Also return: a brief diagnosis, an improved English rewrite of the answer grounded in the evidence, and 0-3 follow-up questions.",
     "",
     `QUESTION: ${args.question}`,
