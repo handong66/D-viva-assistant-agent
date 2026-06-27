@@ -498,3 +498,35 @@ export async function setRecordingError(
 ): Promise<void> {
   db.prepare("UPDATE recording SET stt_status='error', stt_error=? WHERE id=?").run(message, recordingId);
 }
+
+export type ThesisListItem = {
+  id: string;
+  title: string;
+  author: string | null;
+  source_kind: string;
+  created_at: string;
+  is_active: boolean;
+};
+
+export function listTheses(db: DB): ThesisListItem[] {
+  const rows = db
+    .prepare("SELECT id, title, author, source_kind, created_at, is_active FROM thesis ORDER BY created_at DESC, rowid DESC")
+    .all() as {
+      id: string;
+      title: string;
+      author: string | null;
+      source_kind: string;
+      created_at: string;
+      is_active: number;
+    }[];
+  return rows.map((row) => ({ ...row, is_active: !!row.is_active }));
+}
+
+export function switchActiveThesis(db: DB, thesisId: string): void {
+  const exists = db.prepare("SELECT 1 FROM thesis WHERE id = ?").get(thesisId);
+  if (!exists) throw new Error(`Thesis not found: ${thesisId}`);
+  db.transaction(() => {
+    db.prepare("UPDATE thesis SET is_active = 0 WHERE is_active = 1").run();
+    db.prepare("UPDATE thesis SET is_active = 1 WHERE id = ?").run(thesisId);
+  })();
+}
