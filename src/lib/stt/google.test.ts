@@ -38,6 +38,7 @@ describe("googleSttTransport", () => {
     expect(String(url)).toContain("speech.googleapis.com");
     expect(String(url)).toContain("key=test-key");
     if (!init) throw new Error("fetch init missing");
+    expect(init.signal).toBeInstanceOf(AbortSignal);
     const body = JSON.parse(String(init.body)) as {
       config: { languageCode: string; encoding: string; sampleRateHertz: number };
       audio: { content: string };

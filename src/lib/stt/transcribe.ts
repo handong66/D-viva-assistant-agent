@@ -22,8 +22,13 @@ export async function transcribeRecording(
       mime: recording.mime_type,
       languageMode: recording.language_mode,
     });
-    await recordingRepository.setRecordingTranscript(db, opts.recordingId, result.transcript);
-    return { status: "ok", transcript: result.transcript };
+    const transcript = result.transcript.trim();
+    if (!transcript) {
+      await recordingRepository.setRecordingError(db, opts.recordingId, "No speech was recognized in the recording.");
+      return { status: "error" };
+    }
+    await recordingRepository.setRecordingTranscript(db, opts.recordingId, transcript);
+    return { status: "ok", transcript };
   } catch (err) {
     try {
       await recordingRepository.setRecordingError(

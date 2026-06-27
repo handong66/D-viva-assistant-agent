@@ -9,7 +9,7 @@ import { appContext } from "../../lib/server/context";
 
 export type ImportState = { error: string | null };
 
-const MAX_PDF_BYTES = 15 * 1024 * 1024; // keep in sync with serverActions.bodySizeLimit
+const MAX_PDF_BYTES = 15 * 1024 * 1024; // intentionally below the 20 MB Server Action limit for multipart headroom
 
 function messageFor(error: unknown): string {
   return error instanceof Error ? error.message : String(error);

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { makeTestDb } from "../test/db";
-import { getPrepItems } from "./repository";
+import { getPrepItems, getThesisStats } from "./repository";
 
 describe("getPrepItems", () => {
   it("returns items from latest done run, excludes older run and errored run", () => {
@@ -81,6 +81,26 @@ describe("getPrepItems", () => {
     const byId = Object.fromEntries(getPrepItems(db, "t1").map((i) => [i.id, i]));
     expect(byId.n).toMatchObject({ supportKind: "numeric", supportValue: "42" });
     expect(byId.q).toMatchObject({ supportKind: "exact_quote", supportValue: "We cite Bohr 1913." });
+    db.close();
+  });
+
+  it("getThesisStats prep counts are scoped to the latest done run (matches getPrepItems)", () => {
+    const db = makeTestDb();
+    db.exec(`
+      INSERT INTO thesis (id,title,source_kind,is_active) VALUES ('t1','T','md',1);
+      INSERT INTO generation_run (id,thesis_id,kind,status,created_at) VALUES ('old','t1','prep_pack','done','2024-01-01T00:00:00Z');
+      INSERT INTO generation_run (id,thesis_id,kind,status,created_at) VALUES ('new','t1','prep_pack','done','2024-01-02T00:00:00Z');
+      INSERT INTO generation_run (id,thesis_id,kind,status,created_at) VALUES ('err','t1','prep_pack','error','2024-01-03T00:00:00Z');
+      INSERT INTO prep_item (id,thesis_id,generation_run_id,type,title,status,validation_status,validator_version,source) VALUES ('o','t1','old','qa','O','verified','passed','1','generated');
+      INSERT INTO prep_item (id,thesis_id,generation_run_id,type,title,status,validation_status,validator_version,source) VALUES ('n1','t1','new','qa','N1','verified','passed','1','generated');
+      INSERT INTO prep_item (id,thesis_id,generation_run_id,type,title,status,validation_status,validator_version,source) VALUES ('n2','t1','new','qa','N2','needs_review','needs_review','1','generated');
+      INSERT INTO prep_item (id,thesis_id,generation_run_id,type,title,status,validation_status,validator_version,source) VALUES ('e','t1','err','qa','E','unsafe','failed','1','generated');
+    `);
+    const s = getThesisStats(db, "t1");
+    expect(s.prepTotal).toBe(2);
+    expect(s.prepVerified).toBe(1);
+    expect(s.prepNeedsReview).toBe(1);
+    expect(s.prepUnsafe).toBe(0);
     db.close();
   });
 });

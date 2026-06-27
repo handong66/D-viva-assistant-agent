@@ -53,4 +53,32 @@ describe("createLlmClient", () => {
     await expect(client.generateText({ role: "fast", purpose: "p", prompt: "hi" })).rejects.toThrow(/timed out/i);
     expect(logCall).toHaveBeenCalledWith(expect.objectContaining({ status: "timeout" }));
   });
+
+  it("aborts the provider call when the timeout fires", async () => {
+    let seen: AbortSignal | undefined;
+    const transport: LlmTransport = {
+      async object() { throw new Error("unused"); },
+      text(_model, _prompt, _system, signal) {
+        seen = signal;
+        return new Promise<string>((_res, rej) => signal?.addEventListener("abort", () => rej(new Error("aborted"))));
+      },
+    };
+    const client = createLlmClient(transport, { resolveModel: () => "prov/model", logCall: () => {}, timeoutMs: 10 });
+    await expect(client.generateText({ role: "fast", purpose: "t", prompt: "p" })).rejects.toThrow(/timed out/);
+    expect(seen?.aborted).toBe(true);
+  });
+
+  it("aborts the generateObject path on timeout too", async () => {
+    let seen: AbortSignal | undefined;
+    const transport: LlmTransport = {
+      object(_m, _s, _p, _sys, signal) {
+        seen = signal;
+        return new Promise((_r, rej) => signal?.addEventListener("abort", () => rej(new Error("aborted"))));
+      },
+      async text() { throw new Error("unused"); },
+    };
+    const client = createLlmClient(transport, { resolveModel: () => "prov/model", logCall: () => {}, timeoutMs: 10 });
+    await expect(client.generateObject({ role: "hard", purpose: "t", schema: z.object({ x: z.string() }), prompt: "p" })).rejects.toThrow(/timed out/);
+    expect(seen?.aborted).toBe(true);
+  });
 });
