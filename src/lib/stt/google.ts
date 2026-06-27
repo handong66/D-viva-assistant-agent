@@ -1,5 +1,5 @@
 import "server-only";
-import type { SttOpts, SttResult, SttTransport } from "./types";
+import { SttTooLongError, type SttOpts, type SttResult, type SttTransport } from "./types";
 
 export function opusEncoding(mime: string): string | null {
   // MediaRecorder emits e.g. "audio/webm;codecs=opus" — match the container substring.
@@ -36,7 +36,15 @@ export function googleSttTransport(): SttTransport {
           signal: AbortSignal.timeout(20_000),
         },
       );
-      if (!response.ok) throw new Error(`Google STT request failed with status ${response.status}`);
+      if (!response.ok) {
+        const detail = await response.text().catch(() => "");
+        // Narrow to Google's strong sync-length markers; weaker "longer than"/"use a uri" phrases
+        // could appear in unrelated 400s (bad key/encoding), which must stay generic errors.
+        if (response.status === 400 && /too long|longrunningrecognize/i.test(detail)) {
+          throw new SttTooLongError();
+        }
+        throw new Error(`Google STT request failed with status ${response.status}`);
+      }
 
       const body = (await response.json()) as {
         results?: { alternatives?: { transcript?: string }[] }[];

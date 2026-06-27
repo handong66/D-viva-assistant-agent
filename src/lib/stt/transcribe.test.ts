@@ -4,7 +4,7 @@ import * as recordingRepository from "../../db/repository";
 import { makeTestDb } from "../../test/db";
 import { MockSttTransport } from "./mock";
 import { transcribeRecording } from "./transcribe";
-import type { SttTransport } from "./types";
+import { SttTooLongError, type SttTransport } from "./types";
 
 function seed(db: ReturnType<typeof makeTestDb>) {
   db.exec(`
@@ -95,7 +95,7 @@ describe("transcribeRecording", () => {
       audio: Buffer.from([1]),
     });
 
-    expect(result).toEqual({ status: "error" });
+    expect(result).toEqual({ status: "error", message: "api down" });
     expect(db.prepare("SELECT stt_status, stt_error FROM recording WHERE id=?").get("rec3")).toMatchObject({
       stt_status: "error",
       stt_error: "api down",
@@ -119,10 +119,41 @@ describe("transcribeRecording", () => {
       audio: Buffer.from([1]),
     });
 
-    expect(result).toEqual({ status: "error" });
+    expect(result).toEqual({ status: "error", message: "No speech was recognized in the recording." });
     expect(db.prepare("SELECT stt_status, stt_error FROM recording WHERE id=?").get("rec4")).toMatchObject({
       stt_status: "error",
       stt_error: "No speech was recognized in the recording.",
+    });
+    db.close();
+  });
+
+  it("returns the Google length-limit message and marks the recording error when the transport rejects as too long", async () => {
+    const db = makeTestDb();
+    seed(db);
+    await insertRecording(db, {
+      id: "rec5",
+      thesisId: "t1",
+      mimeType: "audio/webm",
+      languageMode: "english",
+      audioPath: "recordings/rec5.webm",
+    });
+    const tooLong = new SttTooLongError();
+    const throwing: SttTransport = {
+      enabled: true,
+      transcribe: async () => {
+        throw tooLong;
+      },
+    };
+
+    const result = await transcribeRecording(db, throwing, {
+      recordingId: "rec5",
+      audio: Buffer.from([1]),
+    });
+
+    expect(result).toEqual({ status: "error", message: tooLong.message });
+    expect(db.prepare("SELECT stt_status, stt_error FROM recording WHERE id=?").get("rec5")).toMatchObject({
+      stt_status: "error",
+      stt_error: tooLong.message,
     });
     db.close();
   });

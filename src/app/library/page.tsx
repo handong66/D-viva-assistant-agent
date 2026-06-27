@@ -66,8 +66,8 @@ export default async function LibraryPage() {
             {config.sttProvider === "off"
               ? "off — no audio is captured or sent."
               : config.sttProvider === "browser"
-                ? "browser — your browser's built-in speech recognition transcribes your voice. Depending on the browser, audio may be sent to the browser vendor's service (e.g. Google for Chrome). No audio passes through this app and no API key is used."
-                : "Google Cloud — recorded audio is sent to Google Cloud Speech-to-Text for transcription."}
+                ? "browser — your browser's built-in continuous recognition transcribes your voice. Depending on the browser, audio may be sent to the browser vendor's service (e.g. Google for Chrome). No audio passes through this app; continuous recognition, no app key, avoids the ~1-min limit."
+                : "Google Cloud — recorded audio is sent to Google Cloud Speech-to-Text for transcription. Answers over ~1 minute aren't supported here — use browser speech (STT_PROVIDER=browser) for longer answers."}
           </li>
         </ul>
         <p className="mt-3 max-w-2xl text-sm text-zinc-600 dark:text-zinc-400">
