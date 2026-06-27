@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 const DIMS = ["evidence", "clarity", "completeness", "boundary", "delivery"] as const;
 
 export default async function PracticePage() {
-  const { db } = await appContext();
+  const { db, config } = await appContext();
   const thesis = getActiveThesis(db);
   if (!thesis) {
     return (
@@ -23,6 +23,7 @@ export default async function PracticePage() {
   }
 
   const run = getLatestPracticeRun(db, thesis.id);
+  const sttReady = config.sttProvider === "google_cloud" && config.sttConfigured;
   return (
     <section className="flex flex-col gap-6">
       <div className="flex flex-col gap-3">
@@ -40,7 +41,7 @@ export default async function PracticePage() {
           </div>
 
           {!run.scores ? (
-            <AnswerForm runId={run.id} />
+            <AnswerForm runId={run.id} sttReady={sttReady} />
           ) : (
             <div className="flex flex-col gap-4">
               {run.answerText ? (
