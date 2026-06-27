@@ -32,7 +32,7 @@ export default async function LibraryPage() {
           <li>
             <b>AI examiner / judge / prep generation:</b>{" "}
             {aiReady
-              ? "enabled — generating a prep pack or scoring an answer sends the relevant thesis evidence text and your typed answer to your configured AI Gateway provider."
+              ? "enabled — content is sent to your configured AI Gateway provider: generating a prep pack sends the thesis title and its bound evidence; generating a question or scoring an answer sends the question text, the relevant bound evidence, and your answer (typed or transcribed); a follow-up also includes the previous question and answer."
               : config.effectiveAiEnabled && !config.gatewayConfigured
                 ? "off — a provider key is set but AI_GATEWAY_API_KEY is not, so nothing is sent."
                 : "disabled — no thesis text or answers are sent anywhere."}
@@ -70,7 +70,7 @@ function AccuracyPanel({ db, thesisId }: { db: import("better-sqlite3").Database
         <Field label="Draft">{s.prepDraft}</Field>
       </dl>
       <p className="max-w-2xl text-sm text-zinc-600 dark:text-zinc-400">
-        Only prep items whose key facts are deterministically provable against their bound evidence are marked <b>verified</b>. Everything else stays <b>needs review</b> or <b>unsafe</b> — the app never presents an unverified claim as fact.
+        Only prep items whose key facts are deterministically provable against their bound evidence are marked <b>verified</b>. Everything else stays <b>needs review</b>, <b>unsafe</b>, or <b>draft</b> — the app never presents an unverified claim as fact.
       </p>
     </div>
   );

@@ -36,12 +36,12 @@ export default async function Home() {
         <span aria-hidden>→</span>
       </Link>
 
-      <dl className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <Stat label="Verified" value={stats.prepVerified} href="/materials" />
         <Stat label="Needs review" value={stats.prepNeedsReview} href="/materials" />
         <Stat label="Practice runs" value={stats.practiceRuns} href="/practice" />
         <Stat label="To review" value={stats.openReviews} href="/review" />
-      </dl>
+      </div>
 
       <p className="text-sm text-zinc-500">
         {stats.evidenceUnits} evidence units · {stats.prepTotal} prep items · <Link href="/library" className="underline">library &amp; settings</Link>
@@ -53,8 +53,8 @@ export default async function Home() {
 function Stat({ label, value, href }: { label: string; value: number; href: string }) {
   return (
     <Link href={href} className="rounded-lg border border-zinc-200 bg-white p-4 hover:border-zinc-300 dark:border-zinc-800 dark:bg-zinc-900">
-      <dt className="text-xs uppercase tracking-wide text-zinc-500">{label}</dt>
-      <dd className="mt-1 text-2xl font-semibold">{value}</dd>
+      <span className="block text-xs uppercase tracking-wide text-zinc-500">{label}</span>
+      <span className="mt-1 block text-2xl font-semibold">{value}</span>
     </Link>
   );
 }
