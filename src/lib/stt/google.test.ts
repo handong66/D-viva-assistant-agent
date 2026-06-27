@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { googleSttTransport, opusEncoding } from "./google";
+import { SttTooLongError } from "./types";
 
 const savedGoogleSttApiKey = process.env.GOOGLE_STT_API_KEY;
 
@@ -55,6 +56,52 @@ describe("googleSttTransport", () => {
     expect(opusEncoding("audio/webm;codecs=opus")).toBe("WEBM_OPUS");
     expect(opusEncoding("audio/ogg;codecs=opus")).toBe("OGG_OPUS");
     expect(opusEncoding("audio/wav")).toBeNull();
+  });
+
+  it("throws a clear SttTooLongError when Google reports the sync length limit", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        new Response(
+          JSON.stringify({
+            error: {
+              message: "Sync input too long. For audio longer than 1 min use LongRunningRecognize with a 'uri' parameter.",
+            },
+          }),
+          { status: 400 },
+        ),
+      ),
+    );
+    process.env.GOOGLE_STT_API_KEY = "k";
+
+    await expect(
+      googleSttTransport().transcribe(Buffer.from([1]), {
+        mime: "audio/webm",
+        languageMode: "english",
+      }),
+    ).rejects.toBeInstanceOf(SttTooLongError);
+  });
+
+  it("throws the generic status error for a non-length 400", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        new Response(
+          JSON.stringify({
+            error: { message: "Invalid encoding" },
+          }),
+          { status: 400 },
+        ),
+      ),
+    );
+    process.env.GOOGLE_STT_API_KEY = "k";
+
+    await expect(
+      googleSttTransport().transcribe(Buffer.from([1]), {
+        mime: "audio/webm",
+        languageMode: "english",
+      }),
+    ).rejects.toThrow(/400/);
   });
 
   it("throws on a non-OK response", async () => {

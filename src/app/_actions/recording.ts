@@ -44,6 +44,7 @@ export async function transcribeAnswerAction(formData: FormData): Promise<Record
     });
     const res = await transcribeRecording(db, getSttTransport(config), { recordingId, audio });
     if (res.status === "ok") return { transcript: res.transcript ?? "", error: null };
+    if (res.status === "error") return { transcript: null, error: res.message };
     return { transcript: null, error: "Could not transcribe the recording. Please try again." };
   } catch (error) {
     console.error("[transcribeAnswerAction]", error);

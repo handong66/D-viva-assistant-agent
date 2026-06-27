@@ -7,7 +7,7 @@ export async function transcribeRecording(
   db: Database,
   stt: SttTransport,
   opts: { recordingId: string; audio: Buffer },
-): Promise<{ status: "ok"; transcript: string } | { status: "skipped" } | { status: "error" }> {
+): Promise<{ status: "ok"; transcript: string } | { status: "skipped" } | { status: "error"; message: string }> {
   if (!stt.enabled) return { status: "skipped" };
 
   try {
@@ -16,7 +16,7 @@ export async function transcribeRecording(
       .get(opts.recordingId) as
       | { mime_type: string; language_mode: "english" | "chinese" }
       | undefined;
-    if (!recording) return { status: "error" };
+    if (!recording) return { status: "error", message: "Recording not found." };
 
     const result = await stt.transcribe(opts.audio, {
       mime: recording.mime_type,
@@ -24,21 +24,19 @@ export async function transcribeRecording(
     });
     const transcript = result.transcript.trim();
     if (!transcript) {
-      await recordingRepository.setRecordingError(db, opts.recordingId, "No speech was recognized in the recording.");
-      return { status: "error" };
+      const message = "No speech was recognized in the recording.";
+      await recordingRepository.setRecordingError(db, opts.recordingId, message);
+      return { status: "error", message };
     }
     await recordingRepository.setRecordingTranscript(db, opts.recordingId, transcript);
     return { status: "ok", transcript };
   } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
     try {
-      await recordingRepository.setRecordingError(
-        db,
-        opts.recordingId,
-        err instanceof Error ? err.message : String(err),
-      );
+      await recordingRepository.setRecordingError(db, opts.recordingId, message);
     } catch {
-      return { status: "error" };
+      return { status: "error", message };
     }
-    return { status: "error" };
+    return { status: "error", message };
   }
 }
