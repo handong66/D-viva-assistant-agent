@@ -435,3 +435,64 @@ export function getThesisStats(db: DB, thesisId: string): ThesisStats {
     openReviews: (db.prepare("SELECT count(*) c FROM review_item WHERE thesis_id = ? AND status = 'open'").get(thesisId) as { c: number }).c,
   };
 }
+
+export type NewRecording = {
+  id: string;
+  thesisId: string;
+  practiceRunId?: string;
+  mimeType: string;
+  languageMode: "english" | "chinese";
+  durationMs?: number;
+  audioPath?: string;
+};
+
+export async function insertRecording(db: DB, rec: NewRecording): Promise<void> {
+  if (rec.practiceRunId) {
+    const run = db
+      .prepare("SELECT 1 FROM practice_run WHERE id=? AND thesis_id=?")
+      .get(rec.practiceRunId, rec.thesisId);
+    if (!run) throw new Error("practice_run not found");
+  }
+
+  db.prepare(
+    `INSERT INTO recording (id, thesis_id, practice_run_id, path, mime, duration_ms, language_mode)
+     VALUES (@id, @thesis_id, @practice_run_id, @path, @mime, @duration_ms, @language_mode)`,
+  ).run({
+    id: rec.id,
+    thesis_id: rec.thesisId,
+    practice_run_id: rec.practiceRunId ?? null,
+    path: rec.audioPath ?? "",
+    mime: rec.mimeType,
+    duration_ms: rec.durationMs ?? null,
+    language_mode: rec.languageMode,
+  });
+}
+
+export async function setRecordingTranscript(
+  db: DB,
+  recordingId: string,
+  transcript: string,
+): Promise<void> {
+  const trimmed = transcript.trim();
+  const tx = db.transaction(() => {
+    db.prepare("UPDATE recording SET transcript=?, stt_status='ok', stt_error=NULL WHERE id=?").run(
+      trimmed,
+      recordingId,
+    );
+    const row = db
+      .prepare("SELECT practice_run_id FROM recording WHERE id=?")
+      .get(recordingId) as { practice_run_id: string | null } | undefined;
+    if (row?.practice_run_id) {
+      db.prepare("UPDATE practice_run SET transcript=? WHERE id=?").run(trimmed, row.practice_run_id);
+    }
+  });
+  tx();
+}
+
+export async function setRecordingError(
+  db: DB,
+  recordingId: string,
+  message: string,
+): Promise<void> {
+  db.prepare("UPDATE recording SET stt_status='error', stt_error=? WHERE id=?").run(message, recordingId);
+}
