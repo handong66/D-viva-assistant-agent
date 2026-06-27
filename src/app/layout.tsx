@@ -24,6 +24,7 @@ const navItems = [
   { href: "/practice", label: "Practice" },
   { href: "/review", label: "Review" },
   { href: "/import", label: "Import" },
+  { href: "/library", label: "Library" },
 ];
 
 export default function RootLayout({
