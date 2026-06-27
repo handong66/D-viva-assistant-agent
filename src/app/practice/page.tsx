@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { appContext } from "../../lib/server/context";
+import { sttUiMode } from "../../lib/stt/mode";
 import { getActiveThesis, getLatestPracticeRun, getRunReviewItems } from "../../db/repository";
 import { StartForm } from "./start-form";
 import { AnswerForm } from "./answer-form";
@@ -23,7 +24,7 @@ export default async function PracticePage() {
   }
 
   const run = getLatestPracticeRun(db, thesis.id);
-  const sttReady = config.sttProvider === "google_cloud" && config.sttConfigured;
+  const sttMode = sttUiMode(config);
   return (
     <section className="flex flex-col gap-6">
       <div className="flex flex-col gap-3">
@@ -41,7 +42,7 @@ export default async function PracticePage() {
           </div>
 
           {!run.scores ? (
-            <AnswerForm runId={run.id} sttReady={sttReady} />
+            <AnswerForm runId={run.id} sttMode={sttMode} />
           ) : (() => {
             const weak = getRunReviewItems(db, run.id);
             return (
