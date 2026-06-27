@@ -111,3 +111,87 @@ describe("validatePrepItem verdict matrix (all 6 types)", () => {
     expect(validatePrepItem(base, [ev("prose")]).validationStatus).toBe("needs_review");
   });
 });
+
+describe("validator hardening", () => {
+  const ev = (text: string) => [{ id: "e1", text }];
+
+  // A3: trivial quotes rejected
+  it("rejects trivial-length quote", () => {
+    // claim: exact_quote with a sub-8-char match should NOT verify
+    const result = validatePrepItem(
+      { ...base, type: "citation_card", claim_text: "fig", evidence_quote: "fig" },
+      ev("see fig"),
+    );
+    expect(result.validationStatus).not.toBe("passed");
+  });
+
+  it("passes substantial citation quote", () => {
+    const result = validatePrepItem(
+      {
+        ...base,
+        type: "citation_card",
+        claim_text: "results show improvement",
+        evidence_quote: "results show improvement",
+      },
+      ev("The results show improvement in all metrics."),
+    );
+    expect(result.validationStatus).toBe("passed");
+  });
+
+  // A4: numeric parsing correctness
+  it("passes negative decimal -0.42", () => {
+    const result = validatePrepItem(
+      { ...base, type: "key_number", claim_text: "-0.42", value_numeric: -0.42 },
+      ev("correlation of -0.42 was found"),
+    );
+    expect(result.validationStatus).toBe("passed");
+  });
+
+  it("passes scientific notation 1e-5", () => {
+    const result = validatePrepItem(
+      { ...base, type: "key_number", claim_text: "1e-5", value_numeric: 1e-5 },
+      ev("threshold 1e-5 applied"),
+    );
+    expect(result.validationStatus).toBe("passed");
+  });
+
+  it("passes comma-formatted 8,130", () => {
+    const result = validatePrepItem(
+      { ...base, type: "key_number", claim_text: "8130", value_numeric: 8130 },
+      ev("sample size 8,130 participants"),
+    );
+    expect(result.validationStatus).toBe("passed");
+  });
+
+  it("passes percentage 81.3 with unit %", () => {
+    const result = validatePrepItem(
+      { ...base, type: "key_number", claim_text: "81.3", value_numeric: 81.3, unit: "%" },
+      ev("accuracy 81.3% was achieved"),
+    );
+    expect(result.validationStatus).toBe("passed");
+  });
+
+  it("rejects version string 1.2.3", () => {
+    const result = validatePrepItem(
+      { ...base, type: "key_number", claim_text: "1.2.3", value_numeric: 1.2 },
+      ev("version 1.2.3 released"),
+    );
+    expect(result.validationStatus).not.toBe("passed");
+  });
+
+  it("does not extract -9 from MMP-9 as a numeric match", () => {
+    const result = validatePrepItem(
+      { ...base, type: "key_number", claim_text: "-9", value_numeric: -9 },
+      ev("enzyme MMP-9 was measured"),
+    );
+    expect(result.validationStatus).not.toBe("passed");
+  });
+
+  it("still passes standalone -0.42 after boundary guard", () => {
+    const result = validatePrepItem(
+      { ...base, type: "key_number", claim_text: "-0.42", value_numeric: -0.42 },
+      ev("value of -0.42 recorded"),
+    );
+    expect(result.validationStatus).toBe("passed");
+  });
+});

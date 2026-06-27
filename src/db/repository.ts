@@ -356,14 +356,23 @@ export function getRunReviewItems(db: DB, practiceRunId: string): RunReviewItem[
     .all(practiceRunId, REVIEW_SCORE_THRESHOLD) as RunReviewItem[];
 }
 
-export type PrepItemRow = { id: string; type: string; title: string; claimText: string | null; status: string; validationStatus: string };
+export type PrepItemRow = {
+  id: string;
+  type: string;
+  title: string;
+  claimText: string | null;
+  status: string;
+  validationStatus: string;
+  supportKind: string | null;
+  supportValue: string | null;
+};
 
 export function getPrepItems(db: DB, thesisId: string): PrepItemRow[] {
   // Show only the latest successful prep-pack run: de-dups re-generates and hides
   // partial items left behind by a run that finalized 'error'.
   const rows = db
     .prepare(
-      `SELECT id, type, title, claim_text, status, validation_status
+      `SELECT id, type, title, claim_text, status, validation_status, support_kind, evidence_quote, value_numeric, unit
          FROM prep_item
         WHERE thesis_id = ?
           AND generation_run_id = (
@@ -373,10 +382,42 @@ export function getPrepItems(db: DB, thesisId: string): PrepItemRow[] {
           )
         ORDER BY type, created_at, id`,
     )
-    .all(thesisId, thesisId) as { id: string; type: string; title: string; claim_text: string | null; status: string; validation_status: string }[];
+    .all(thesisId, thesisId) as {
+      id: string;
+      type: string;
+      title: string;
+      claim_text: string | null;
+      status: string;
+      validation_status: string;
+      support_kind: string | null;
+      evidence_quote: string | null;
+      value_numeric: number | null;
+      unit: string | null;
+    }[];
   return rows.map((r) => ({
-    id: r.id, type: r.type, title: r.title, claimText: r.claim_text, status: r.status, validationStatus: r.validation_status,
+    id: r.id,
+    type: r.type,
+    title: r.title,
+    claimText: r.claim_text,
+    status: r.status,
+    validationStatus: r.validation_status,
+    supportKind: r.support_kind,
+    supportValue: supportValueForPrepItem(r.support_kind, r.evidence_quote, r.value_numeric, r.unit),
   }));
+}
+
+function supportValueForPrepItem(
+  supportKind: string | null,
+  evidenceQuote: string | null,
+  valueNumeric: number | null,
+  unit: string | null,
+): string | null {
+  if (supportKind === "exact_quote") return evidenceQuote;
+  if (supportKind === "numeric" && valueNumeric !== null) {
+    if (!unit) return String(valueNumeric);
+    return unit === "%" ? `${valueNumeric}%` : `${valueNumeric} ${unit}`;
+  }
+  return null;
 }
 
 export type PrepItemForEdit = { id: string; thesisId: string; type: PrepItemType; title: string; claimText: string | null; evidenceQuote: string | null; valueNumeric: number | null; unit: string | null; status: string };
