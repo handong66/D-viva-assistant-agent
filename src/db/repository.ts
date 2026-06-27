@@ -608,3 +608,108 @@ export function switchActiveThesis(db: DB, thesisId: string): void {
     db.prepare("UPDATE thesis SET is_active = 1 WHERE id = ?").run(thesisId);
   })();
 }
+
+export type PlanDayInput = { dayNo: number; title: string; focus: string; activities: string[] };
+export type SavedPlan = {
+  id: string;
+  name: string;
+  totalDays: number;
+  createdAt: string;
+  templateKey: string;
+  days: PlanDayInput[];
+};
+
+export function safeJsonArray(raw: unknown): string[] {
+  let parsed: unknown;
+  if (typeof raw === "string") {
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      return [];
+    }
+  } else {
+    parsed = raw;
+  }
+  return Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === "string") : [];
+}
+
+export function getThesisSections(db: DB, thesisId: string): string[] {
+  return (
+    db
+      .prepare(
+        `SELECT section, min(ord) AS first_ord
+           FROM thesis_chunk
+          WHERE thesis_id = ? AND section IS NOT NULL AND trim(section) <> ''
+          GROUP BY section
+          ORDER BY first_ord`,
+      )
+      .all(thesisId) as { section: string }[]
+  ).map((row) => row.section);
+}
+
+export function savePlan(
+  db: DB,
+  input: { thesisId: string; name: string; totalDays: number; templateKey: string; days: PlanDayInput[] },
+): string {
+  const planId = randomUUID();
+  const insertPlan = db.prepare(
+    "INSERT INTO plan (id, thesis_id, name, total_days, template_key, created_at) VALUES (?,?,?,?,?,datetime('now'))",
+  );
+  const insertDay = db.prepare(
+    "INSERT INTO plan_day (id, plan_id, day_no, title, focus, blocks) VALUES (?,?,?,?,?,?)",
+  );
+
+  db.transaction(() => {
+    db.prepare("DELETE FROM plan_day WHERE plan_id IN (SELECT id FROM plan WHERE thesis_id = ?)").run(input.thesisId);
+    db.prepare("DELETE FROM plan WHERE thesis_id = ?").run(input.thesisId);
+    insertPlan.run(planId, input.thesisId, input.name, input.totalDays, input.templateKey);
+    for (const day of input.days) {
+      insertDay.run(
+        randomUUID(),
+        planId,
+        day.dayNo,
+        day.title,
+        day.focus,
+        JSON.stringify(day.activities),
+      );
+    }
+  })();
+
+  return planId;
+}
+
+export function getActivePlan(db: DB, thesisId: string): SavedPlan | null {
+  const plan = db
+    .prepare(
+      `SELECT id, name, total_days, template_key, created_at
+         FROM plan
+        WHERE thesis_id = ?
+        ORDER BY datetime(created_at) DESC, rowid DESC
+        LIMIT 1`,
+    )
+    .get(thesisId) as
+    | { id: string; name: string; total_days: number; template_key: string; created_at: string | null }
+    | undefined;
+
+  if (!plan) return null;
+
+  const days = (
+    db
+      .prepare("SELECT day_no, title, focus, blocks FROM plan_day WHERE plan_id = ? ORDER BY day_no")
+      .all(plan.id) as { day_no: number; title: string; focus: string | null; blocks: string | null }[]
+  ).map((day) => ({
+    dayNo: day.day_no,
+    title: day.title,
+    focus: day.focus ?? "General review",
+    activities: safeJsonArray(day.blocks),
+  }));
+
+  return {
+    id: plan.id,
+    name: plan.name,
+    totalDays: plan.total_days,
+    templateKey: plan.template_key,
+    createdAt: plan.created_at ?? new Date().toISOString(),
+    days,
+  };
+}

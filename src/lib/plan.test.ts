@@ -3,14 +3,21 @@ import { defaultPlan, planPhase, currentDayNumber, TOTAL_DAYS } from "./plan";
 
 describe("planPhase", () => {
   it("maps day ranges to the three phases", () => {
-    expect(planPhase(1).name).toBe("Build familiarity");
-    expect(planPhase(5).name).toBe("Build familiarity");
-    expect(planPhase(6).name).toBe("Drill the core");
-    expect(planPhase(10).name).toBe("Drill the core");
-    expect(planPhase(11).name).toBe("Polish under pressure");
-    expect(planPhase(15).name).toBe("Polish under pressure");
-    expect(planPhase(99).name).toBe("Polish under pressure"); // clamps past the end
-    expect(planPhase(3).activities.length).toBeGreaterThan(0);
+    expect(planPhase(1, TOTAL_DAYS).name).toBe("Build familiarity");
+    expect(planPhase(5, TOTAL_DAYS).name).toBe("Build familiarity");
+    expect(planPhase(6, TOTAL_DAYS).name).toBe("Drill the core");
+    expect(planPhase(10, TOTAL_DAYS).name).toBe("Drill the core");
+    expect(planPhase(11, TOTAL_DAYS).name).toBe("Polish under pressure");
+    expect(planPhase(15, TOTAL_DAYS).name).toBe("Polish under pressure");
+    expect(planPhase(99, TOTAL_DAYS).name).toBe("Polish under pressure"); // clamps past the end
+    expect(planPhase(3, TOTAL_DAYS).activities.length).toBeGreaterThan(0);
+  });
+
+  it.each([3, 5, 10, 30])("covers all three phases for a %i-day plan", (totalDays) => {
+    const phases = Array.from({ length: totalDays }, (_, i) => planPhase(i + 1, totalDays).name);
+    expect(new Set(phases)).toEqual(new Set(["Build familiarity", "Drill the core", "Polish under pressure"]));
+    expect(phases[0]).toBe("Build familiarity");
+    expect(phases[phases.length - 1]).toBe("Polish under pressure");
   });
 });
 
