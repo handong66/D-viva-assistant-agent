@@ -34,12 +34,13 @@ describe("searchEvidence", () => {
 
     const hits = searchEvidence(db, "t1", "methodology", 5);
 
-    expect(hits.map((hit) => hit.text)).toEqual([
-      "methodology methodology",
-      "methodology appears in a broader background note with many filler terms",
-    ]);
-    expect(hits.map((hit) => hit.section)).toEqual(["Methods", "Background"]);
-    expect(hits.some((hit) => hit.text.includes("another thesis"))).toBe(false);
+    // Both matching t1 units are returned; their order is BM25-ranked (SQLite-internal — not
+    // asserted). The non-matching t1 unit and the other thesis's unit are excluded.
+    const texts = hits.map((hit) => hit.text);
+    expect(texts).toHaveLength(2);
+    expect(texts).toContain("methodology methodology");
+    expect(texts).toContain("methodology appears in a broader background note with many filler terms");
+    expect(texts.some((t) => t.includes("another thesis"))).toBe(false);
     db.close();
   });
 

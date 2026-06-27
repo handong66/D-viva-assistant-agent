@@ -1,6 +1,6 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
-import type { Database, Database as DB } from "better-sqlite3";
+import type { Database as DB } from "better-sqlite3";
 import { VALIDATOR_VERSION, type EvidenceText, type Verdict, type PrepItemType } from "../lib/evidence/validator";
 
 export class EvidenceBindingError extends Error {
@@ -254,7 +254,7 @@ export function getThesisEvidenceWithSection(db: DB, thesisId: string): ExamEvid
 
 export type EvidenceHit = { id: string; text: string; section: string | null };
 
-export function searchEvidence(db: Database, thesisId: string, query: string, limit = 8): EvidenceHit[] {
+export function searchEvidence(db: DB, thesisId: string, query: string, limit = 8): EvidenceHit[] {
   const terms = query.match(/[\p{L}\p{N}]+/gu) ?? [];
   if (terms.length === 0) return [];
   const match = terms.map((t) => `"${t}"`).join(" OR ");
