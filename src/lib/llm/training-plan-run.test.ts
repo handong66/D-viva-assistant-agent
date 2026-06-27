@@ -28,13 +28,13 @@ function seed() {
 }
 
 describe("runTrainingPlanGeneration", () => {
-  it("saves clean LLM output as an AI plan with fixed action-label activities", async () => {
+  it("saves clean LLM output as an AI plan: fixed-label titles + fixed action-label activities", async () => {
     const db = seed();
     const mock = new MockLlmClient().setObject("training_plan", {
       days: [
-        { theme: "Foundations", sectionFocus: ["Introduction"], actions: [PLAN_ACTIONS.READ_SECTION, PLAN_ACTIONS.MOCK_QUESTION] },
-        { theme: "Methods Practice", sectionFocus: ["Methods"], actions: [PLAN_ACTIONS.WRITE_ANSWER] },
-        { theme: "Rehearsal", sectionFocus: ["Results"], actions: [PLAN_ACTIONS.REHEARSE_OUT_LOUD] },
+        { themeKey: "orientation", sectionFocus: ["Introduction"], actions: [PLAN_ACTIONS.READ_SECTION, PLAN_ACTIONS.MOCK_QUESTION] },
+        { themeKey: "methods_focus", sectionFocus: ["Methods"], actions: [PLAN_ACTIONS.WRITE_ANSWER] },
+        { themeKey: "rehearsal", sectionFocus: ["Results"], actions: [PLAN_ACTIONS.REHEARSE_OUT_LOUD] },
       ],
     });
 
@@ -43,6 +43,8 @@ describe("runTrainingPlanGeneration", () => {
     const plan = getActivePlan(db, "t1");
     expect(plan?.templateKey).toBe("ai");
     expect(plan?.days).toHaveLength(3);
+    // title comes from the FIXED label map, never model free text
+    expect(plan?.days[0]?.title).toBe("Day 1 - Orientation & overview");
     expect(plan?.days[0]?.activities).toEqual([
       ACTION_LABEL[PLAN_ACTIONS.READ_SECTION],
       ACTION_LABEL[PLAN_ACTIONS.MOCK_QUESTION],
@@ -54,9 +56,9 @@ describe("runTrainingPlanGeneration", () => {
     const db = seed();
     const mock = new MockLlmClient().setObject("training_plan", {
       days: [
-        { theme: "Foundations", sectionFocus: ["Introduction", "Invented"], actions: [PLAN_ACTIONS.READ_SECTION] },
-        { theme: "Practice", sectionFocus: ["Methods"], actions: [PLAN_ACTIONS.MOCK_QUESTION] },
-        { theme: "Review", sectionFocus: ["Results"], actions: [PLAN_ACTIONS.REVIEW_NOTES] },
+        { themeKey: "orientation", sectionFocus: ["Introduction", "Invented"], actions: [PLAN_ACTIONS.READ_SECTION] },
+        { themeKey: "practice_drills", sectionFocus: ["Methods"], actions: [PLAN_ACTIONS.MOCK_QUESTION] },
+        { themeKey: "weak_spots", sectionFocus: ["Results"], actions: [PLAN_ACTIONS.REVIEW_NOTES] },
       ],
     });
 
@@ -68,34 +70,12 @@ describe("runTrainingPlanGeneration", () => {
     db.close();
   });
 
-  it.each(["Phase 1", "Quoted \"Finding\"", "Progress 80%"])(
-    "falls back to a static plan when a theme smuggles unsafe text: %s",
-    async (theme) => {
-      const db = seed();
-      const mock = new MockLlmClient().setObject("training_plan", {
-        days: [
-          { theme, sectionFocus: ["Introduction"], actions: [PLAN_ACTIONS.READ_SECTION] },
-          { theme: "Practice", sectionFocus: ["Methods"], actions: [PLAN_ACTIONS.MOCK_QUESTION] },
-          { theme: "Review", sectionFocus: ["Results"], actions: [PLAN_ACTIONS.REVIEW_NOTES] },
-        ],
-      });
-
-      await expect(runTrainingPlanGeneration({ db, llmClient: mock, totalDays: 3, thesisId: "t1" })).resolves.toEqual({ source: "static" });
-
-      const plan = getActivePlan(db, "t1");
-      expect(plan?.templateKey).toBe("static");
-      expect(plan?.days).toHaveLength(3);
-      expect(plan?.days[0]?.title).toBe("Day 1");
-      db.close();
-    },
-  );
-
   it("pads short output to N days and truncates long output to N days", async () => {
     const shortDb = seed();
     const shortMock = new MockLlmClient().setObject("training_plan", {
       days: [
-        { theme: "Foundations", sectionFocus: ["Introduction"], actions: [PLAN_ACTIONS.READ_SECTION] },
-        { theme: "Practice", sectionFocus: ["Methods"], actions: [PLAN_ACTIONS.MOCK_QUESTION] },
+        { themeKey: "orientation", sectionFocus: ["Introduction"], actions: [PLAN_ACTIONS.READ_SECTION] },
+        { themeKey: "practice_drills", sectionFocus: ["Methods"], actions: [PLAN_ACTIONS.MOCK_QUESTION] },
       ],
     });
 
@@ -115,17 +95,21 @@ describe("runTrainingPlanGeneration", () => {
     const longDb = seed();
     const longMock = new MockLlmClient().setObject("training_plan", {
       days: [
-        { theme: "One", sectionFocus: ["Introduction"], actions: [PLAN_ACTIONS.READ_SECTION] },
-        { theme: "Two", sectionFocus: ["Methods"], actions: [PLAN_ACTIONS.MOCK_QUESTION] },
-        { theme: "Three", sectionFocus: ["Results"], actions: [PLAN_ACTIONS.REVIEW_NOTES] },
-        { theme: "Four", sectionFocus: ["Results"], actions: [PLAN_ACTIONS.REHEARSE_OUT_LOUD] },
+        { themeKey: "orientation", sectionFocus: ["Introduction"], actions: [PLAN_ACTIONS.READ_SECTION] },
+        { themeKey: "methods_focus", sectionFocus: ["Methods"], actions: [PLAN_ACTIONS.MOCK_QUESTION] },
+        { themeKey: "rehearsal", sectionFocus: ["Results"], actions: [PLAN_ACTIONS.REVIEW_NOTES] },
+        { themeKey: "final_polish", sectionFocus: ["Results"], actions: [PLAN_ACTIONS.REHEARSE_OUT_LOUD] },
       ],
     });
 
     await runTrainingPlanGeneration({ db: longDb, llmClient: longMock, totalDays: 3, thesisId: "t1" });
     const truncated = getActivePlan(longDb, "t1");
     expect(truncated?.days).toHaveLength(3);
-    expect(truncated?.days.map((day) => day.title)).toEqual(["Day 1 - One", "Day 2 - Two", "Day 3 - Three"]);
+    expect(truncated?.days.map((day) => day.title)).toEqual([
+      "Day 1 - Orientation & overview",
+      "Day 2 - Methods focus",
+      "Day 3 - Rehearsal",
+    ]);
     longDb.close();
   });
 });

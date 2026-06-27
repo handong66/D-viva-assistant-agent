@@ -10,7 +10,6 @@ import {
   savePlan,
   type PlanDayInput,
 } from "../../db/repository";
-import { staticPlanDays } from "../plan";
 
 export type TrainingPlanGenerationSource = { source: "ai" | "static" };
 
@@ -50,22 +49,10 @@ export async function runTrainingPlanGeneration({
   const validSections = new Set(sections);
   const rendered = generated.map((day, index) => renderPlanDay(day, index + 1, validSections));
 
-  const saveStatic = () => {
-    savePlan(db, {
-      thesisId: thesis.id,
-      name: `${totalDays}-day plan`,
-      totalDays,
-      templateKey: "static",
-      days: staticPlanDays(totalDays),
-    });
-  };
-
-  if (rendered.some((day) => day === null)) {
-    saveStatic();
-    return { source: "static" };
-  }
-
-  const days = normalizeToNDays(rendered as PlanDayInput[], totalDays);
+  // renderPlanDay never returns null — themeKey is an enum, sectionFocus is filtered to real
+  // sections, and activities come only from ACTION_LABEL. The output is safe by construction;
+  // a generation error is handled by the action's try/catch (→ static plan).
+  const days = normalizeToNDays(rendered, totalDays);
   savePlan(db, {
     thesisId: thesis.id,
     name: `${totalDays}-day plan`,
