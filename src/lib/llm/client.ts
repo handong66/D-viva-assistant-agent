@@ -36,7 +36,9 @@ function withTimeout<R>(op: (signal: AbortSignal) => Promise<R>, ms: number): Pr
       controller.abort();
       reject(new LlmTimeoutError(ms));
     }, ms);
-    op(controller.signal).then(
+    // Promise.resolve().then(...) so a SYNCHRONOUS throw in op becomes a rejection (clearing the timer),
+    // not an uncaught throw that leaks the setTimeout.
+    Promise.resolve().then(() => op(controller.signal)).then(
       (v) => { clearTimeout(t); resolve(v); },
       (e) => { clearTimeout(t); reject(e); },
     );

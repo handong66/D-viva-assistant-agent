@@ -498,13 +498,13 @@ export function getThesisStats(db: DB, thesisId: string): ThesisStats {
   const prepCount = (status: string) =>
     latestRunId === null
       ? 0
-      : (db.prepare("SELECT count(*) c FROM prep_item WHERE generation_run_id = ? AND status = ?").get(latestRunId, status) as { c: number }).c;
+      : (db.prepare("SELECT count(*) c FROM prep_item WHERE thesis_id = ? AND generation_run_id = ? AND status = ?").get(thesisId, latestRunId, status) as { c: number }).c;
   return {
     evidenceUnits: (db.prepare("SELECT count(*) c FROM evidence_unit WHERE thesis_id = ?").get(thesisId) as { c: number }).c,
     prepTotal:
       latestRunId === null
         ? 0
-        : (db.prepare("SELECT count(*) c FROM prep_item WHERE generation_run_id = ?").get(latestRunId) as { c: number }).c,
+        : (db.prepare("SELECT count(*) c FROM prep_item WHERE thesis_id = ? AND generation_run_id = ?").get(thesisId, latestRunId) as { c: number }).c,
     prepVerified: prepCount("verified"),
     prepNeedsReview: prepCount("needs_review"),
     prepUnsafe: prepCount("unsafe"),
