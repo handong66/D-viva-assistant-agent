@@ -19,8 +19,8 @@
 - Codex 启动注意 `service_tier` 必须 `fast`/`flex`（否则起不来）。
 
 ## Doc-sync 一致性集 — 改一个必须一起改
-- 设计 spec (`docs/superpowers/specs/2026-06-23-viva-assistant-generic-design.md`) ↔ plan (`docs/plans/…`) ↔ 代码。
-- DB schema (`db/schema.ts`) ↔ spec §6 数据模型。
+- 设计 spec (`docs/superpowers/specs/2026-06-23-viva-assistant-generic-design.md`) ↔ plan (`docs/superpowers/plans/…`) ↔ 代码。
+- DB schema (`src/db/migrations/*.ts`，嵌入式 TS 迁移；无 `db/schema.ts`) ↔ spec §6 数据模型。
 - env 契约 (`.env.example`) ↔ spec §14。
 
 ## Canonical commands（M0 脚手架时落地）
