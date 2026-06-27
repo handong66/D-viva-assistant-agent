@@ -6,6 +6,7 @@ import {
   getThesisEvidenceWithSection,
   getPracticeRunBoundEvidence,
   insertPracticeRunWithEvidence,
+  searchEvidence,
 } from "../../db/repository";
 
 export async function runExaminerQuestion(
@@ -13,7 +14,7 @@ export async function runExaminerQuestion(
   client: LlmClient,
   thesisId: string,
   kind: QuestionKind,
-  opts?: { section?: string | null; previousRunId?: string },
+  opts?: { section?: string | null; previousRunId?: string; topic?: string },
 ): Promise<{ practiceRunId: string; question: string; evidenceUnitIds: string[] }> {
   const thesis = db.prepare("SELECT title FROM thesis WHERE id=?").get(thesisId) as { title: string } | undefined;
   if (!thesis) throw new Error(`thesis not found: ${thesisId}`);
@@ -31,6 +32,8 @@ export async function runExaminerQuestion(
     if (!answer) throw new Error("previous run has no answer (or transcript) to follow up on");
     candidates = getPracticeRunBoundEvidence(db, opts.previousRunId).map((e) => ({ id: e.id, text: e.text, section: null }));
     previous = { question: prev.question, answer };
+  } else if (opts?.topic?.trim()) {
+    candidates = searchEvidence(db, thesisId, opts.topic).map((e) => ({ id: e.id, text: e.text, section: e.section }));
   } else {
     candidates = selectCandidates(getThesisEvidenceWithSection(db, thesisId), kind, opts);
   }

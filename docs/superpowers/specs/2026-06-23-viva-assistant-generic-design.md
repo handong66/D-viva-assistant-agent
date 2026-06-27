@@ -180,6 +180,7 @@ samples/                 公开样本论文（文本 fixture）+ 生成包快照
 ## 11. 考官与判分
 
 - `examiner.ts`：模式——整篇随机/按章/跨章综合/高压/越界/追问。跨章/综合走 `evidence/retrieval`（FTS + 章节覆盖；P1-8），每题绑定 `evidence_unit`（写 `practice_run_evidence`）。
+- `evidence_fts`（migration 0002）已有 repository reader `searchEvidence`：练习出题可选 topic filter，用 BM25 相关性从 FTS 命中的证据中提供 examiner candidates，而不是默认 full pool；落库的 `question_kind` 仍保持用户选择的既有 kind；后续 offered-ids 过滤与 `practice_run_evidence` 绑定不变，grounding/binding 保持成立。
 - `judge.ts`：题目 + 绑定证据 + 回答（文本/transcript）→ 五维分 + 诊断 + 英文改写 + 追问，只据绑定证据判定。
 - 路由：日常→`default`，高压/复杂→`hard`，轻量→`fast`/deterministic。
 

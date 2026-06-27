@@ -252,6 +252,24 @@ export function getThesisEvidenceWithSection(db: DB, thesisId: string): ExamEvid
     .all(thesisId) as ExamEvidence[];
 }
 
+export type EvidenceHit = { id: string; text: string; section: string | null };
+
+export function searchEvidence(db: DB, thesisId: string, query: string, limit = 8): EvidenceHit[] {
+  const terms = query.match(/[\p{L}\p{N}]+/gu) ?? [];
+  if (terms.length === 0) return [];
+  const match = terms.map((t) => `"${t}"`).join(" OR ");
+  return db
+    .prepare(
+      `SELECT eu.id AS id, eu.text AS text, eu.section AS section
+         FROM evidence_fts f
+         JOIN evidence_unit eu ON eu.id = f.evidence_unit_id
+        WHERE f.text MATCH ? AND eu.thesis_id = ?
+        ORDER BY rank
+        LIMIT ?`,
+    )
+    .all(match, thesisId, limit) as EvidenceHit[];
+}
+
 /** Evidence bound to a practice_run — NOTE the join table is practice_run_evidence,
  *  distinct from getBoundEvidence() which reads prep_item_evidence. */
 export function getPracticeRunBoundEvidence(db: DB, practiceRunId: string): EvidenceText[] {

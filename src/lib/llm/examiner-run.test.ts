@@ -8,7 +8,7 @@ function seed(db: ReturnType<typeof makeTestDb>) {
     INSERT INTO thesis (id,title,source_kind,is_active) VALUES ('t1','T','md',1);
     INSERT INTO thesis_chunk (id,thesis_id,ord,section,text,char_count,hash) VALUES ('c1','t1',0,'Methods','m',1,'h1');
     INSERT INTO thesis_chunk (id,thesis_id,ord,section,text,char_count,hash) VALUES ('c2','t1',1,'Results','r',1,'h2');
-    INSERT INTO evidence_unit (id,thesis_id,chunk_id,section,char_start,char_end,text,hash) VALUES ('e1','t1','c1','Methods',0,1,'method detail','h1');
+    INSERT INTO evidence_unit (id,thesis_id,chunk_id,section,char_start,char_end,text,hash) VALUES ('e1','t1','c1','Methods',0,1,'methods detail','h1');
     INSERT INTO evidence_unit (id,thesis_id,chunk_id,section,char_start,char_end,text,hash) VALUES ('e2','t1','c2','Results',0,1,'result 81.3%','h2');
   `);
 }
@@ -49,6 +49,27 @@ describe("runExaminerQuestion", () => {
     const db = makeTestDb(); seed(db);
     const mock = new MockLlmClient().setObject("examiner:by_section", { question: "Q?", evidence_unit_ids: ["e1"] });
     await expect(runExaminerQuestion(db, mock, "t1", "by_section")).rejects.toThrow(/requires opts\.section/i);
+    db.close();
+  });
+
+  it("uses topic FTS hits as candidates while storing the original question kind", async () => {
+    const db = makeTestDb(); seed(db);
+    const mock = new MockLlmClient().setObject("examiner:random", { question: "Topic question?", evidence_unit_ids: ["e1", "e2"] });
+    const res = await runExaminerQuestion(db, mock, "t1", "random", { topic: "methods" });
+
+    expect(res.evidenceUnitIds).toEqual(["e1"]);
+    const run = db.prepare("SELECT question_kind FROM practice_run WHERE id=?").get(res.practiceRunId) as { question_kind: string };
+    expect(run.question_kind).toBe("random");
+    expect((db.prepare("SELECT count(*) c FROM practice_run_evidence WHERE practice_run_id=?").get(res.practiceRunId) as { c: number }).c).toBe(1);
+    db.close();
+  });
+
+  it("throws when a topic has no matching evidence", async () => {
+    const db = makeTestDb(); seed(db);
+    const mock = new MockLlmClient().setObject("examiner:random", { question: "Q?", evidence_unit_ids: ["e1"] });
+
+    await expect(runExaminerQuestion(db, mock, "t1", "random", { topic: "nonexistent" })).rejects.toThrow(/no candidate evidence/i);
+    expect(mock.calls).toEqual([]);
     db.close();
   });
 
