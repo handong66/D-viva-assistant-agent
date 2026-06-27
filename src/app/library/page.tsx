@@ -66,7 +66,7 @@ export default async function LibraryPage() {
             {config.sttProvider === "off"
               ? "off — no audio is captured or sent."
               : config.sttProvider === "browser"
-                ? "browser — audio is transcribed locally by your browser."
+                ? "browser — your browser's built-in speech recognition transcribes your voice. Depending on the browser, audio may be sent to the browser vendor's service (e.g. Google for Chrome). No audio passes through this app and no API key is used."
                 : "Google Cloud — recorded audio is sent to Google Cloud Speech-to-Text for transcription."}
           </li>
         </ul>
