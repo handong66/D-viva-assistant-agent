@@ -37,4 +37,11 @@ describe("loadConfig", () => {
     const c = loadConfig({ VIVA_AI_ENABLED: "true", GOOGLE_APPLICATION_CREDENTIALS: "/path/sa.json" });
     expect(c.effectiveAiEnabled).toBe(true);
   });
+
+  it("sttConfigured requires google_cloud provider AND a key", () => {
+    expect(loadConfig({ STT_PROVIDER: "google_cloud", GOOGLE_STT_API_KEY: "k" }).sttConfigured).toBe(true);
+    expect(loadConfig({ STT_PROVIDER: "google_cloud" }).sttConfigured).toBe(false);
+    expect(loadConfig({ STT_PROVIDER: "browser", GOOGLE_STT_API_KEY: "k" }).sttConfigured).toBe(false);
+    expect(loadConfig({}).sttConfigured).toBe(false);
+  });
 });
