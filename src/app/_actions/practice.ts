@@ -18,12 +18,13 @@ export async function startPracticeAction(_prev: PracticeState, formData: FormDa
   if (!thesis) return { error: "Import a thesis first." };
 
   const kind = String(formData.get("kind") ?? "");
+  const topic = String(formData.get("topic") ?? "").trim();
   if (!SELECTABLE.has(kind)) return { error: "Pick a question type." };
   if (!config.effectiveAiEnabled || !config.gatewayConfigured) return { error: AI_OFF };
 
   try {
     const client = await appLlmClient({ db, config });
-    await runExaminerQuestion(db, client, thesis.id, kind as QuestionKind);
+    await runExaminerQuestion(db, client, thesis.id, kind as QuestionKind, topic ? { topic } : undefined);
     revalidatePath("/practice");
     return { error: null };
   } catch (error) {

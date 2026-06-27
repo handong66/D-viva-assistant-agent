@@ -19,6 +19,15 @@ export function StartForm() {
           {KINDS.map((k) => <option key={k.value} value={k.value}>{k.label}</option>)}
         </select>
       </label>
+      <label className="flex flex-col gap-1">
+        <span className="text-sm font-medium">Topic (optional)</span>
+        <input
+          name="topic"
+          type="text"
+          placeholder="e.g. methodology, sample size"
+          className="w-64 rounded-md border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
+        />
+      </label>
       <button type="submit" disabled={pending} className="rounded-md bg-zinc-950 px-4 py-2 text-sm font-medium text-white disabled:opacity-50 dark:bg-zinc-50 dark:text-zinc-950">
         {pending ? "Generating…" : "Generate question"}
       </button>
