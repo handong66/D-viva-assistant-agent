@@ -187,7 +187,7 @@ samples/                 公开样本论文（文本 fixture）+ 生成包快照
 
 ## 12. STT 与录音（v1 保留）
 
-- `lib/stt`：`SttClient` 接口；`STT_PROVIDER∈{google_cloud, browser, off}`（默认 off）。`google_cloud`（chirp_2，多语言 en-US/cmn-Hans-CN，opt-in，§3 隐私）；`browser`（Web Speech 端上）；测试注入 `MockSttClient`。
+- `lib/stt`：`SttClient`/`SttTransport` 接口；`STT_PROVIDER∈{google_cloud, browser, off}`（默认 off）。`google_cloud`（M5a 用 v1 `speech:recognize` 默认/latest 模型，多语言 en-US/cmn-Hans-CN，opt-in，§3 隐私；v2/chirp_2 为后续细化）；`browser`（Web Speech 端上）；测试注入 `MockSttTransport`。
 - 录音存 `recordings/YYYY-MM-DD/`，登记 `recording` 表（mime/语言/stt 状态等），关联 `practice_run`；默认语言英文。
 
 ---
