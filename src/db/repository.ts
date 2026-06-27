@@ -414,3 +414,24 @@ export function getReviewItems(db: DB, thesisId: string): ReviewItemView[] {
 export function saveAnswer(db: DB, practiceRunId: string, answerText: string): void {
   db.prepare("UPDATE practice_run SET answer_text = ? WHERE id = ?").run(answerText.trim(), practiceRunId);
 }
+
+export type ThesisStats = {
+  evidenceUnits: number;
+  prepTotal: number; prepVerified: number; prepNeedsReview: number; prepUnsafe: number; prepDraft: number;
+  practiceRuns: number; openReviews: number;
+};
+
+export function getThesisStats(db: DB, thesisId: string): ThesisStats {
+  const prepCount = (status: string) =>
+    (db.prepare("SELECT count(*) c FROM prep_item WHERE thesis_id = ? AND status = ?").get(thesisId, status) as { c: number }).c;
+  return {
+    evidenceUnits: (db.prepare("SELECT count(*) c FROM evidence_unit WHERE thesis_id = ?").get(thesisId) as { c: number }).c,
+    prepTotal: (db.prepare("SELECT count(*) c FROM prep_item WHERE thesis_id = ?").get(thesisId) as { c: number }).c,
+    prepVerified: prepCount("verified"),
+    prepNeedsReview: prepCount("needs_review"),
+    prepUnsafe: prepCount("unsafe"),
+    prepDraft: prepCount("draft"),
+    practiceRuns: (db.prepare("SELECT count(*) c FROM practice_run WHERE thesis_id = ?").get(thesisId) as { c: number }).c,
+    openReviews: (db.prepare("SELECT count(*) c FROM review_item WHERE thesis_id = ? AND status = 'open'").get(thesisId) as { c: number }).c,
+  };
+}
