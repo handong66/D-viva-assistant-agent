@@ -58,13 +58,34 @@ describe("judge repository", () => {
     db.close();
   });
 
+  it("getRunReviewItems applies its own <=2 + run filter independently of applyJudgeResult", () => {
+    const db = makeTestDb(); const id = seed(db);
+    db.exec(
+      `INSERT INTO review_item (id,thesis_id,practice_run_id,dimension,score,reason) VALUES ('hi','t1','${id}','clarity',3,'above threshold');
+       INSERT INTO practice_run (id,thesis_id,question,question_kind,status) VALUES ('r2','t1','Q2','random','saved');
+       INSERT INTO review_item (id,thesis_id,practice_run_id,dimension,score,reason) VALUES ('other','t1','r2','evidence',1,'other run');
+       INSERT INTO review_item (id,thesis_id,practice_run_id,dimension,score,reason) VALUES ('lo','t1','${id}','delivery',2,'kept');`,
+    );
+    expect(getRunReviewItems(db, id)).toEqual([{ dimension: "delivery", score: 2, reason: "kept" }]); // score=3 + other-run excluded
+    db.close();
+  });
+
   it("re-judging is idempotent: review_item rows are replaced, not duplicated (no unique violation)", () => {
     const db = makeTestDb(); const id = seed(db);
     applyJudgeResult(db, { practiceRunId: id, thesisId: "t1", scores, reasons, diagnosis: "d1", rewrite: "r1", followUps: [] });
     const reviewed = applyJudgeResult(db, { practiceRunId: id, thesisId: "t1", scores: { evidence: 5, clarity: 5, completeness: 5, boundary: 5, delivery: 1 }, reasons: { ...reasons, delivery: "hard to follow" }, diagnosis: "d2", rewrite: "r2", followUps: [] });
     expect(reviewed).toEqual(["delivery"]);
-    const items = db.prepare("SELECT dimension FROM review_item WHERE practice_run_id=?").all(id) as { dimension: string }[];
+    const items = db.prepare("SELECT dimension, reason FROM review_item WHERE practice_run_id=?").all(id) as { dimension: string; reason: string }[];
     expect(items.map((i) => i.dimension)).toEqual(["delivery"]);
+    expect(items[0]?.reason).toBe("hard to follow"); // reason refreshed to the new judging, not the old d1
+    db.close();
+  });
+
+  it("a whitespace-only model reason falls back to the diagnosis", () => {
+    const db = makeTestDb(); const id = seed(db);
+    applyJudgeResult(db, { practiceRunId: id, thesisId: "t1", scores, reasons: { ...reasons, evidence: "   " }, diagnosis: "fallback diag", rewrite: "r", followUps: [] });
+    const ev = db.prepare("SELECT reason FROM review_item WHERE practice_run_id=? AND dimension='evidence'").get(id) as { reason: string };
+    expect(ev.reason).toBe("fallback diag");
     db.close();
   });
 
