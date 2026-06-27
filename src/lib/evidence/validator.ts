@@ -35,26 +35,36 @@ function pass(supportKind: SupportKind, reason: string): Verdict {
 function review(supportKind: SupportKind, reason: string): Verdict {
   return { validationStatus: "needs_review", supportKind, reason };
 }
+
+const MIN_QUOTE_CHARS = 8;
 function quoteMatches(quote: string, bound: EvidenceText[]): boolean {
   const q = normalize(quote);
-  return q.length > 0 && bound.some((e) => normalize(e.text).includes(q));
+  return q.length >= MIN_QUOTE_CHARS && bound.some((e) => normalize(e.text).includes(q));
 }
 
 const NUM_EPS = 1e-9;
 // Parse one number token to a Number, stripping thousands-grouping commas (e.g. 8,130 -> 8130).
-// Returns null for anything that isn't a plain integer/decimal after cleaning (e.g. "81,3", "1.2.3").
+// Returns null for anything that isn't a signed integer/decimal/exponent after cleaning (e.g. "81,3", "1.2.3").
 function parseNumToken(tok: string): number | null {
   const cleaned = tok.replace(/,(?=\d{3}(\D|$))/g, "");
-  if (!/^\d+(\.\d+)?$/.test(cleaned)) return null;
+  if (!/^-?\d+(\.\d+)?([eE][+-]?\d+)?$/.test(cleaned)) return null;
   const n = Number(cleaned);
   return Number.isFinite(n) ? n : null;
 }
 function numericMatches(value: number, unit: string | null, bound: EvidenceText[]): boolean {
   const wantUnit = unit && unit.trim() ? normalize(unit) : null;
-  const re = /\d[\d.,]*\d|\d/g; // whole number tokens; no \s so separate numbers don't merge
+  const re = /-?\d[\d.,eE+-]*\d|-?\d/g; // whole number tokens; no \s so separate numbers don't merge
   for (const e of bound) {
     const t = normalize(e.text);
     for (const m of t.matchAll(re)) {
+      const idx = m.index ?? 0;
+      if (m[0].startsWith("-")) {
+        // A leading "-" is a sign only if it isn't glued to an identifier (MMP-9) and isn't a
+        // numeric range (12 -15). normalize() maps en/em dashes to "-". A digit before the "-"
+        // (ignoring spaces) means a range; an alnum immediately before means an identifier.
+        const prevNonWs = t.slice(0, idx).replace(/\s+$/, "").slice(-1);
+        if (/[a-z0-9]/.test(t[idx - 1] ?? "") || /[0-9]/.test(prevNonWs)) continue;
+      }
       const n = parseNumToken(m[0]);
       if (n === null || Math.abs(n - value) >= NUM_EPS) continue; // value compared numerically, not as substring
       if (!wantUnit) return true;
