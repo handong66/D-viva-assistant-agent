@@ -1,14 +1,16 @@
 export type PlanActivity = { label: string; href: string };
 export type PlanDay = { day: number; phase: string; title: string; activities: PlanActivity[] };
+export type StaticPlanDay = { dayNo: number; title: string; focus: string; activities: string[] };
 
 export const TOTAL_DAYS = 15;
+export const MIN_PLAN_DAYS = 3;
+export const MAX_PLAN_DAYS = 30;
 
 // Every phase keeps the spec's daily structure — read materials -> core/AI training
 // (practice) -> review — so each day touches /materials, /practice, AND /review.
-const PHASES: { name: string; through: number; activities: PlanActivity[] }[] = [
+const PHASES: { name: string; activities: PlanActivity[] }[] = [
   {
     name: "Build familiarity",
-    through: 5,
     activities: [
       { label: "Read a section of your thesis materials", href: "/materials" },
       { label: "Answer 2 warm-up practice questions", href: "/practice" },
@@ -17,7 +19,6 @@ const PHASES: { name: string; through: number; activities: PlanActivity[] }[] = 
   },
   {
     name: "Drill the core",
-    through: 10,
     activities: [
       { label: "Re-read a key section — focus on the numbers", href: "/materials" },
       { label: "Answer 3 practice questions (mix random & by-section)", href: "/practice" },
@@ -26,7 +27,6 @@ const PHASES: { name: string; through: number; activities: PlanActivity[] }[] = 
   },
   {
     name: "Polish under pressure",
-    through: 15,
     activities: [
       { label: "Re-read your verified key facts", href: "/materials" },
       { label: "Take a hostile or boundary question", href: "/practice" },
@@ -35,17 +35,34 @@ const PHASES: { name: string; through: number; activities: PlanActivity[] }[] = 
   },
 ];
 
-export function planPhase(day: number): { name: string; activities: PlanActivity[] } {
-  const phase = PHASES.find((p) => day <= p.through) ?? PHASES[PHASES.length - 1]!;
+export function planPhase(day: number, totalDays: number = TOTAL_DAYS): { name: string; activities: PlanActivity[] } {
+  const rawPhase = Math.floor(((day - 1) / Math.max(totalDays, 1)) * PHASES.length);
+  const phaseIndex = Math.min(Math.max(rawPhase, 0), PHASES.length - 1);
+  const phase = PHASES[phaseIndex]!;
   return { name: phase.name, activities: phase.activities };
 }
 
 export function defaultPlan(totalDays: number = TOTAL_DAYS): PlanDay[] {
-  return Array.from({ length: totalDays }, (_, i) => {
+  const days = Math.max(0, Math.floor(totalDays));
+  return Array.from({ length: days }, (_, i) => {
     const day = i + 1;
-    const { name, activities } = planPhase(day);
+    const { name, activities } = planPhase(day, days);
     return { day, phase: name, title: `Day ${day}`, activities };
   });
+}
+
+export function clampPlanDays(n: number): number {
+  const rounded = Math.round(n) || TOTAL_DAYS;
+  return Math.min(Math.max(rounded, MIN_PLAN_DAYS), MAX_PLAN_DAYS);
+}
+
+export function staticPlanDays(totalDays: number): StaticPlanDay[] {
+  return defaultPlan(totalDays).map((d) => ({
+    dayNo: d.day,
+    title: d.title,
+    focus: d.phase,
+    activities: d.activities.map((a) => a.label),
+  }));
 }
 
 export function currentDayNumber(startedAtISO: string, totalDays: number, nowISO: string = new Date().toISOString()): number {

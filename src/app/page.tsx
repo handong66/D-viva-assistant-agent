@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { appContext } from "../lib/server/context";
-import { getActiveThesis, getThesisStats } from "../db/repository";
+import { getActivePlan, getActiveThesis, getThesisStats } from "../db/repository";
 import { recommendNextAction } from "../lib/dashboard";
 import { currentDayNumber, planPhase, TOTAL_DAYS } from "../lib/plan";
 
@@ -24,8 +24,13 @@ export default async function Home() {
   const stats = getThesisStats(db, thesis.id);
   const aiReady = config.effectiveAiEnabled && config.gatewayConfigured;
   const next = recommendNextAction(stats, aiReady);
-  const today = currentDayNumber(thesis.createdAt, TOTAL_DAYS);
-  const phase = planPhase(today);
+  const activePlan = getActivePlan(db, thesis.id);
+  const planToday = activePlan ? currentDayNumber(activePlan.createdAt, activePlan.totalDays) : null;
+  const activeDay = activePlan && planToday !== null
+    ? activePlan.days.find((day) => day.dayNo === planToday) ?? activePlan.days[0] ?? null
+    : null;
+  const staticToday = currentDayNumber(thesis.createdAt, TOTAL_DAYS);
+  const staticPhase = planPhase(staticToday, TOTAL_DAYS);
 
   return (
     <section className="flex flex-col gap-6">
@@ -41,13 +46,19 @@ export default async function Home() {
 
       <div className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
         <div className="flex items-baseline justify-between gap-3">
-          <span className="text-sm font-medium">Day {today} of {TOTAL_DAYS} · {phase.name}</span>
+          <span className="text-sm font-medium">
+            {activePlan && activeDay && planToday !== null
+              ? `Day ${planToday} of ${activePlan.totalDays} · ${activeDay.title}`
+              : `Day ${staticToday} of ${TOTAL_DAYS} · ${staticPhase.name}`}
+          </span>
           <Link href="/plan" className="text-sm text-zinc-600 underline hover:text-zinc-900 dark:text-zinc-400">Full plan →</Link>
         </div>
         <ul className="mt-2 list-disc pl-5 text-sm text-zinc-600 dark:text-zinc-400">
-          {phase.activities.map((a) => (
-            <li key={a.label}><Link href={a.href} className="underline-offset-2 hover:underline">{a.label}</Link></li>
-          ))}
+          {activePlan && activeDay
+            ? activeDay.activities.map((activity) => <li key={activity}>{activity}</li>)
+            : staticPhase.activities.map((a) => (
+              <li key={a.label}><Link href={a.href} className="underline-offset-2 hover:underline">{a.label}</Link></li>
+            ))}
         </ul>
       </div>
 
