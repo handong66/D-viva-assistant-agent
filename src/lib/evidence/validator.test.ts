@@ -187,6 +187,33 @@ describe("validator hardening", () => {
     expect(result.validationStatus).not.toBe("passed");
   });
 
+  it("rejects a spaced numeric range (12 -15 → -15) but still passes a real negative", () => {
+    expect(
+      validatePrepItem({ ...base, type: "key_number", claim_text: "-15", value_numeric: -15 }, ev("pages 12 -15 inclusive")).validationStatus,
+    ).not.toBe("passed"); // "-15" follows a digit (ignoring spaces) → range, not a sign
+    expect(
+      validatePrepItem({ ...base, type: "key_number", claim_text: "-0.42", value_numeric: -0.42 }, ev("the coefficient was -0.42 overall")).validationStatus,
+    ).toBe("passed"); // preceded by a letter+space → genuine negative
+  });
+
+  it("rejects a glued numeric range 12-15", () => {
+    expect(
+      validatePrepItem({ ...base, type: "key_number", claim_text: "15", value_numeric: 15 }, ev("see pages 12-15 today")).validationStatus,
+    ).not.toBe("passed");
+  });
+
+  it("rejects invalid comma grouping 81,3 (not 813)", () => {
+    expect(
+      validatePrepItem({ ...base, type: "key_number", claim_text: "813", value_numeric: 813 }, ev("ratio 81,3 reported")).validationStatus,
+    ).not.toBe("passed");
+  });
+
+  it("passes scientific 1.2e+3 (= 1200)", () => {
+    expect(
+      validatePrepItem({ ...base, type: "key_number", claim_text: "1200", value_numeric: 1200 }, ev("scaled by 1.2e+3 overall")).validationStatus,
+    ).toBe("passed");
+  });
+
   it("still passes standalone -0.42 after boundary guard", () => {
     const result = validatePrepItem(
       { ...base, type: "key_number", claim_text: "-0.42", value_numeric: -0.42 },

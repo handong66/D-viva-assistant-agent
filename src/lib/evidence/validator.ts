@@ -58,7 +58,13 @@ function numericMatches(value: number, unit: string | null, bound: EvidenceText[
     const t = normalize(e.text);
     for (const m of t.matchAll(re)) {
       const idx = m.index ?? 0;
-      if (m[0].startsWith("-") && idx > 0 && /[a-z0-9]/.test(t[idx - 1] ?? "")) continue;
+      if (m[0].startsWith("-")) {
+        // A leading "-" is a sign only if it isn't glued to an identifier (MMP-9) and isn't a
+        // numeric range (12 -15). normalize() maps en/em dashes to "-". A digit before the "-"
+        // (ignoring spaces) means a range; an alnum immediately before means an identifier.
+        const prevNonWs = t.slice(0, idx).replace(/\s+$/, "").slice(-1);
+        if (/[a-z0-9]/.test(t[idx - 1] ?? "") || /[0-9]/.test(prevNonWs)) continue;
+      }
       const n = parseNumToken(m[0]);
       if (n === null || Math.abs(n - value) >= NUM_EPS) continue; // value compared numerically, not as substring
       if (!wantUnit) return true;

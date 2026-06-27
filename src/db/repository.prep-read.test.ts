@@ -67,4 +67,20 @@ describe("getPrepItems", () => {
     expect(getPrepItems(db, "t1").map((item) => item.id)).toEqual(["second_item"]);
     db.close();
   });
+
+  it("surfaces supportKind + supportValue (the verified datum) for the badge", () => {
+    const db = makeTestDb();
+    db.exec(`
+      INSERT INTO thesis (id,title,source_kind,is_active) VALUES ('t1','T','md',1);
+      INSERT INTO generation_run (id,thesis_id,kind,status) VALUES ('g1','t1','prep_pack','done');
+      INSERT INTO prep_item (id,thesis_id,generation_run_id,type,title,claim_text,value_numeric,unit,support_kind,status,validation_status,validator_version,source)
+        VALUES ('n','t1','g1','key_number','N','forty-two',42,NULL,'numeric','verified','passed','1','generated');
+      INSERT INTO prep_item (id,thesis_id,generation_run_id,type,title,claim_text,evidence_quote,support_kind,status,validation_status,validator_version,source)
+        VALUES ('q','t1','g1','citation_card','C','Bohr 1913','We cite Bohr 1913.','exact_quote','verified','passed','1','generated');
+    `);
+    const byId = Object.fromEntries(getPrepItems(db, "t1").map((i) => [i.id, i]));
+    expect(byId.n).toMatchObject({ supportKind: "numeric", supportValue: "42" });
+    expect(byId.q).toMatchObject({ supportKind: "exact_quote", supportValue: "We cite Bohr 1913." });
+    db.close();
+  });
 });
