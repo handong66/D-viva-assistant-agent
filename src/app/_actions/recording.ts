@@ -29,6 +29,8 @@ export async function transcribeAnswerAction(formData: FormData): Promise<Record
     const file = formData.get("audio");
     if (!(file instanceof File) || file.size === 0) return { transcript: null, error: "No audio was captured." };
     if (file.size > MAX_AUDIO_BYTES) return { transcript: null, error: "Recording is too large — keep answers under ~15 MB." };
+    // Defense-in-depth: the client locks Opus, but a direct action call could send anything.
+    if (!/^audio\/(webm|ogg|wav)\b/.test(file.type)) return { transcript: null, error: "Unsupported audio format." };
 
     const audio = Buffer.from(await file.arrayBuffer());
     const recordingId = randomUUID();

@@ -1,8 +1,11 @@
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 
-/** Absolute root for stored recordings — deterministic even if CWD drifts. */
+/** Absolute root for stored recordings — deterministic even if CWD drifts.
+ *  A blank/whitespace RECORDINGS_DIR (e.g. a copied `.env` with `RECORDINGS_DIR=`) is
+ *  treated as unset, so recordings never escape the gitignored ./recordings default. */
 export function recordingsRoot(): string {
-  return process.env.RECORDINGS_DIR ?? join(process.cwd(), "recordings");
+  const root = process.env.RECORDINGS_DIR?.trim();
+  return root ? resolve(root) : join(process.cwd(), "recordings");
 }
 
 export function extFor(mime: string): string {

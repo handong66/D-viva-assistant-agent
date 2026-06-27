@@ -20,7 +20,7 @@
 
 ```ts
 // src/lib/stt/path.ts — pure
-export function recordingPath(recordingId: string, mime: string): string; // "recordings/YYYY-MM-DD/<id>.<ext>"
+export function recordingPath(recordingId: string, mime: string): string; // "<date>/<id>.<ext>" relative to recordingsRoot()
 
 // src/app/_actions/recording.ts — "use server"
 export type RecordState = { transcript: string | null; error: string | null };
