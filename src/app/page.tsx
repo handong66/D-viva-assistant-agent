@@ -2,6 +2,7 @@ import Link from "next/link";
 import { appContext } from "../lib/server/context";
 import { getActiveThesis, getThesisStats } from "../db/repository";
 import { recommendNextAction } from "../lib/dashboard";
+import { currentDayNumber, planPhase, TOTAL_DAYS } from "../lib/plan";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -23,6 +24,8 @@ export default async function Home() {
   const stats = getThesisStats(db, thesis.id);
   const aiReady = config.effectiveAiEnabled && config.gatewayConfigured;
   const next = recommendNextAction(stats, aiReady);
+  const today = currentDayNumber(thesis.createdAt, TOTAL_DAYS);
+  const phase = planPhase(today);
 
   return (
     <section className="flex flex-col gap-6">
@@ -35,6 +38,18 @@ export default async function Home() {
         <span className="text-sm font-medium">Recommended next: {next.label}</span>
         <span aria-hidden>→</span>
       </Link>
+
+      <div className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
+        <div className="flex items-baseline justify-between gap-3">
+          <span className="text-sm font-medium">Day {today} of {TOTAL_DAYS} · {phase.name}</span>
+          <Link href="/plan" className="text-sm text-zinc-600 underline hover:text-zinc-900 dark:text-zinc-400">Full plan →</Link>
+        </div>
+        <ul className="mt-2 list-disc pl-5 text-sm text-zinc-600 dark:text-zinc-400">
+          {phase.activities.map((a) => (
+            <li key={a.label}><Link href={a.href} className="underline-offset-2 hover:underline">{a.label}</Link></li>
+          ))}
+        </ul>
+      </div>
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <Stat label="Verified" value={stats.prepVerified} href="/materials" />
