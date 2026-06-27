@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { switchActiveThesis } from "../../db/repository";
 import { ingestThesis, IngestQualityError, type IngestInput } from "../../lib/ingest";
 import { parseImportForm } from "../../lib/import/parse";
 import { appContext } from "../../lib/server/context";
@@ -63,4 +64,14 @@ export async function importThesisAction(
 
   revalidatePath("/");
   redirect("/");
+}
+
+export async function switchThesisAction(formData: FormData): Promise<never> {
+  const { db } = await appContext();
+  const id = formData.get("thesisId") as string | null;
+  try {
+    if (id) switchActiveThesis(db, id);
+  } catch {}
+  revalidatePath("/", "layout");
+  redirect("/library");
 }

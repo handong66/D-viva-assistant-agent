@@ -1,6 +1,7 @@
 import Link from "next/link";
+import { switchThesisAction } from "../_actions/thesis";
 import { appContext } from "../../lib/server/context";
-import { getActiveThesis, getThesisStats } from "../../db/repository";
+import { getActiveThesis, getThesisStats, listTheses } from "../../db/repository";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -25,6 +26,29 @@ export default async function LibraryPage() {
         ) : (
           <p className="text-sm text-zinc-600 dark:text-zinc-400">No thesis imported. <Link href="/import" className="underline">Import one</Link>.</p>
         )}
+      </Panel>
+
+      <Panel title="Your theses">
+        <ul className="divide-y divide-zinc-800">
+          {listTheses(db).map((thesis) => (
+            <li key={thesis.id}>
+              <div className="flex items-center justify-between py-3 px-1">
+                <div>
+                  <p className="text-sm font-medium text-zinc-100">{thesis.title}</p>
+                  <p className="text-xs text-zinc-400">{thesis.source_kind.toUpperCase()} · {thesis.created_at.slice(0, 10)}</p>
+                </div>
+                {thesis.is_active ? (
+                  <span className="text-xs font-semibold text-emerald-400 uppercase tracking-wide">Active</span>
+                ) : (
+                  <form action={switchThesisAction}>
+                    <input type="hidden" name="thesisId" value={thesis.id} />
+                    <button type="submit" className="text-xs text-zinc-400 hover:text-zinc-100 transition-colors">Make active</button>
+                  </form>
+                )}
+              </div>
+            </li>
+          ))}
+        </ul>
       </Panel>
 
       <Panel title="AI &amp; privacy">
