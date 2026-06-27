@@ -28,6 +28,7 @@ export function AnswerForm({ runId, sttMode }: { runId: string; sttMode: SttUiMo
   const [recError, setRecError] = useState<string | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
+  const streamRef = useRef<MediaStream | null>(null);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const baseRef = useRef("");   // answer text when browser recording began
   const finalRef = useRef("");  // accumulated final transcript this session
@@ -37,7 +38,10 @@ export function AnswerForm({ runId, sttMode }: { runId: string; sttMode: SttUiMo
   useEffect(() => () => {
     const rec = recognitionRef.current;
     if (rec) { rec.onresult = null; rec.onerror = null; rec.onend = null; rec.stop(); recognitionRef.current = null; }
-    recorderRef.current?.stop();
+    const recorder = recorderRef.current;
+    if (recorder) { recorder.onstop = null; recorder.ondataavailable = null; if (recorder.state !== "inactive") recorder.stop(); recorderRef.current = null; }
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
   }, []);
 
   async function startCloud() {
@@ -46,11 +50,13 @@ export function AnswerForm({ runId, sttMode }: { runId: string; sttMode: SttUiMo
     if (!mime) { setRecError("Recording is not supported in this browser — type your answer instead."); return; }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
       const recorder = new MediaRecorder(stream, { mimeType: mime });
       chunksRef.current = [];
       recorder.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
       recorder.onstop = async () => {
         stream.getTracks().forEach((t) => t.stop());
+        streamRef.current = null;
         const blob = new Blob(chunksRef.current, { type: recorder.mimeType });
         if (blob.size === 0) { setRecError("No audio was captured."); return; }
         if (blob.size > MAX_CLIENT_BYTES) { setRecError("Recording is too long — keep it under ~10 MB."); return; }
@@ -89,6 +95,7 @@ export function AnswerForm({ runId, sttMode }: { runId: string; sttMode: SttUiMo
     baseRef.current = answer ? answer + " " : "";
     finalRef.current = "";
     rec.onresult = (e) => {
+      if (recognitionRef.current !== rec) return; // ignore a superseded recognizer's late event
       let interim = "";
       for (let i = e.resultIndex; i < e.results.length; i++) {
         const r = e.results[i]!;
@@ -97,10 +104,11 @@ export function AnswerForm({ runId, sttMode }: { runId: string; sttMode: SttUiMo
       }
       setAnswer(baseRef.current + finalRef.current + interim);
     };
-    rec.onerror = (ev) => { setRecError(`Speech recognition error${ev.error ? `: ${ev.error}` : ""}.`); setRecording(false); };
-    rec.onend = () => { setRecording(false); recognitionRef.current = null; };
-    try { rec.start(); recognitionRef.current = rec; setRecording(true); }
-    catch { setRecError("Could not start speech recognition."); }
+    rec.onerror = (ev) => { if (recognitionRef.current !== rec) return; setRecError(`Speech recognition error${ev.error ? `: ${ev.error}` : ""}.`); setRecording(false); };
+    rec.onend = () => { if (recognitionRef.current !== rec) return; setRecording(false); recognitionRef.current = null; };
+    recognitionRef.current = rec;                  // set before start so callbacks see the current recognizer
+    try { rec.start(); setRecording(true); }
+    catch { recognitionRef.current = null; setRecError("Could not start speech recognition."); }
   }
   function stopBrowser() { recognitionRef.current?.stop(); setRecording(false); }
 
