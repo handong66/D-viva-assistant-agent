@@ -1,7 +1,7 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
 import type { Database as DB } from "better-sqlite3";
-import { VALIDATOR_VERSION, type EvidenceText, type Verdict } from "../lib/evidence/validator";
+import { VALIDATOR_VERSION, type EvidenceText, type Verdict, type PrepItemType } from "../lib/evidence/validator";
 
 export class EvidenceBindingError extends Error {
   constructor(message: string) { super(message); this.name = "EvidenceBindingError"; }
@@ -368,6 +368,21 @@ export function getPrepItems(db: DB, thesisId: string): PrepItemRow[] {
   return rows.map((r) => ({
     id: r.id, type: r.type, title: r.title, claimText: r.claim_text, status: r.status, validationStatus: r.validation_status,
   }));
+}
+
+export type PrepItemForEdit = { id: string; thesisId: string; type: PrepItemType; title: string; claimText: string | null; evidenceQuote: string | null; valueNumeric: number | null; unit: string | null; status: string };
+
+export function getPrepItemForEdit(db: DB, prepItemId: string): PrepItemForEdit | undefined {
+  const r = db
+    .prepare("SELECT id, thesis_id, type, title, claim_text, evidence_quote, value_numeric, unit, status FROM prep_item WHERE id = ?")
+    .get(prepItemId) as { id: string; thesis_id: string; type: PrepItemType; title: string; claim_text: string | null; evidence_quote: string | null; value_numeric: number | null; unit: string | null; status: string } | undefined;
+  return r && { id: r.id, thesisId: r.thesis_id, type: r.type, title: r.title, claimText: r.claim_text, evidenceQuote: r.evidence_quote, valueNumeric: r.value_numeric, unit: r.unit, status: r.status };
+}
+
+export function updatePrepItemFields(db: DB, prepItemId: string, edits: { claimText: string | null; evidenceQuote: string | null; valueNumeric: number | null; unit: string | null }): void {
+  db.prepare(
+    `UPDATE prep_item SET claim_text=@claim_text, evidence_quote=@evidence_quote, value_numeric=@value_numeric, unit=@unit, source='edited', updated_at=datetime('now') WHERE id=@id`,
+  ).run({ id: prepItemId, claim_text: edits.claimText, evidence_quote: edits.evidenceQuote, value_numeric: edits.valueNumeric, unit: edits.unit });
 }
 
 export type PracticeRunView = {

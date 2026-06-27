@@ -1,8 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { getActiveThesis } from "../../db/repository";
+import { redirect } from "next/navigation";
+import { getActiveThesis, getPrepItemForEdit } from "../../db/repository";
 import { runPrepPackGeneration } from "../../lib/llm/prep-pack-run";
+import { editAndRevalidatePrepItem } from "../../lib/prep/edit";
 import { appContext, appLlmClient } from "../../lib/server/context";
 
 export type GenerateState = { error: string | null; generated: number | null };
@@ -34,4 +36,19 @@ export async function generatePrepPackAction(
     console.error("[generatePrepPackAction]", error);
     return { error: "Generation failed. Please try again.", generated: null };
   }
+}
+
+export async function editPrepItemAction(formData: FormData): Promise<void> {
+  const { db } = await appContext();
+  const id = String(formData.get("prepItemId") ?? "");
+  const thesis = getActiveThesis(db);
+  const item = id ? getPrepItemForEdit(db, id) : undefined;
+  if (thesis && item && item.thesisId === thesis.id) {
+    const rawNum = String(formData.get("valueNumeric") ?? "").trim();
+    const valueNumeric = rawNum === "" || !Number.isFinite(Number(rawNum)) ? null : Number(rawNum);
+    const str = (k: string) => { const v = String(formData.get(k) ?? "").trim(); return v === "" ? null : v; };
+    editAndRevalidatePrepItem(db, id, { claimText: str("claimText"), evidenceQuote: str("evidenceQuote"), valueNumeric, unit: str("unit") });
+  }
+  revalidatePath("/materials");
+  redirect("/materials");
 }
