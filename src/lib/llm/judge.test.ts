@@ -4,6 +4,13 @@ import { JudgeResultSchema, buildJudgePrompt, judgeAnswer } from "./judge";
 
 const valid = {
   scores: { evidence: 4, clarity: 3, completeness: 2, boundary: 5, delivery: 4 },
+  reasons: {
+    evidence: "supported by the cited evidence",
+    clarity: "mostly clear",
+    completeness: "misses one part",
+    boundary: "states scope",
+    delivery: "fluent",
+  },
   diagnosis: "Mostly grounded but missed the limitation.",
   rewrite: "A clearer grounded answer.",
   follow_ups: ["What about the boundary case?"],
@@ -29,6 +36,18 @@ describe("JudgeResultSchema", () => {
     expect(JudgeResultSchema.safeParse({ ...valid, diagnosis: "" }).success).toBe(false);
     expect(JudgeResultSchema.safeParse({ ...valid, rewrite: "" }).success).toBe(false);
   });
+
+  it("rejects empty or missing per-dimension reasons", () => {
+    expect(JudgeResultSchema.safeParse({ ...valid, reasons: { ...valid.reasons, evidence: "" } }).success).toBe(false);
+    expect(
+      JudgeResultSchema.safeParse({
+        scores: valid.scores,
+        diagnosis: valid.diagnosis,
+        rewrite: valid.rewrite,
+        follow_ups: valid.follow_ups,
+      }).success,
+    ).toBe(false);
+  });
 });
 
 describe("buildJudgePrompt", () => {
@@ -43,6 +62,7 @@ describe("buildJudgePrompt", () => {
     expect(p).toContain("[e1] accuracy was 81.3%");
     expect(p).toContain("Because the model was tuned.");
     expect(p.toLowerCase()).toContain("do not use outside knowledge");
+    expect(p.toLowerCase()).toContain("reason");
     for (const d of ["evidence", "clarity", "completeness", "boundary", "delivery"]) {
       expect(p).toContain(d);
     }

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { appContext } from "../../lib/server/context";
-import { getActiveThesis, getLatestPracticeRun } from "../../db/repository";
+import { getActiveThesis, getLatestPracticeRun, getRunReviewItems } from "../../db/repository";
 import { StartForm } from "./start-form";
 import { AnswerForm } from "./answer-form";
 
@@ -42,7 +42,9 @@ export default async function PracticePage() {
 
           {!run.scores ? (
             <AnswerForm runId={run.id} sttReady={sttReady} />
-          ) : (
+          ) : (() => {
+            const weak = getRunReviewItems(db, run.id);
+            return (
             <div className="flex flex-col gap-4">
               {run.answerText ? (
                 <p className="text-sm text-zinc-600 dark:text-zinc-400">
@@ -60,6 +62,16 @@ export default async function PracticePage() {
                   );
                 })}
               </dl>
+              {weak.length > 0 ? (
+                <div>
+                  <h3 className="text-sm font-medium">Why the weak dimensions scored low</h3>
+                  <ul className="mt-1 flex flex-col gap-1 text-sm text-zinc-600 dark:text-zinc-400">
+                    {weak.map((w) => (
+                      <li key={w.dimension}><span className="font-medium text-red-600 dark:text-red-400">{w.dimension} · {w.score}/5</span>{w.reason ? ` — ${w.reason}` : ""}</li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
               {run.diagnosis ? <Field label="Diagnosis">{run.diagnosis}</Field> : null}
               {run.rewrite ? <Field label="Suggested rewrite">{run.rewrite}</Field> : null}
               {run.followUps && run.followUps.length > 0 ? (
@@ -71,7 +83,8 @@ export default async function PracticePage() {
                 </div>
               ) : null}
             </div>
-          )}
+            );
+          })()}
         </article>
       )}
     </section>
