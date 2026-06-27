@@ -444,6 +444,7 @@ export type NewRecording = {
   languageMode: "english" | "chinese";
   durationMs?: number;
   audioPath?: string;
+  sttProvider?: string;
 };
 
 export async function insertRecording(db: DB, rec: NewRecording): Promise<void> {
@@ -455,8 +456,8 @@ export async function insertRecording(db: DB, rec: NewRecording): Promise<void> 
   }
 
   db.prepare(
-    `INSERT INTO recording (id, thesis_id, practice_run_id, path, mime, duration_ms, language_mode)
-     VALUES (@id, @thesis_id, @practice_run_id, @path, @mime, @duration_ms, @language_mode)`,
+    `INSERT INTO recording (id, thesis_id, practice_run_id, path, mime, duration_ms, language_mode, stt_provider)
+     VALUES (@id, @thesis_id, @practice_run_id, @path, @mime, @duration_ms, @language_mode, @stt_provider)`,
   ).run({
     id: rec.id,
     thesis_id: rec.thesisId,
@@ -465,6 +466,7 @@ export async function insertRecording(db: DB, rec: NewRecording): Promise<void> 
     mime: rec.mimeType,
     duration_ms: rec.durationMs ?? null,
     language_mode: rec.languageMode,
+    stt_provider: rec.sttProvider ?? null,
   });
 }
 

@@ -12,6 +12,8 @@ export function googleSttTransport(): SttTransport {
   return {
     enabled: true,
     async transcribe(audio: Buffer, opts: SttOpts): Promise<SttResult> {
+      const key = process.env.GOOGLE_STT_API_KEY;
+      if (!key) throw new Error("GOOGLE_STT_API_KEY not set"); // fail closed: no audio leaves without a key
       const languageCode = opts.languageMode === "english" ? "en-US" : "cmn-Hans-CN";
       const config: { languageCode: string; encoding?: string; sampleRateHertz?: number } = {
         languageCode,
@@ -23,7 +25,7 @@ export function googleSttTransport(): SttTransport {
       }
 
       const response = await fetch(
-        `https://speech.googleapis.com/v1/speech:recognize?key=${process.env.GOOGLE_STT_API_KEY}`,
+        `https://speech.googleapis.com/v1/speech:recognize?key=${encodeURIComponent(key)}`,
         {
           method: "POST",
           headers: { "content-type": "application/json" },

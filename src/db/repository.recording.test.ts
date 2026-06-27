@@ -24,10 +24,11 @@ describe("recording repository", () => {
       languageMode: "english",
       durationMs: 123,
       audioPath: "recordings/rec1.webm",
+      sttProvider: "google_cloud",
     });
 
     expect(
-      db.prepare("SELECT thesis_id, practice_run_id, path, mime, duration_ms, language_mode, stt_status FROM recording WHERE id=?")
+      db.prepare("SELECT thesis_id, practice_run_id, path, mime, duration_ms, language_mode, stt_provider, stt_status FROM recording WHERE id=?")
         .get("rec1"),
     ).toMatchObject({
       thesis_id: "t1",
@@ -36,6 +37,7 @@ describe("recording repository", () => {
       mime: "audio/webm",
       duration_ms: 123,
       language_mode: "english",
+      stt_provider: "google_cloud",
       stt_status: "none",
     });
     db.close();
