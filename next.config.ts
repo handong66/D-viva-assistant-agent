@@ -6,7 +6,7 @@ const nextConfig: NextConfig = {
   experimental: {
     // Thesis PDFs routinely exceed the 1 MB Server Action default, which would 413
     // the import POST before the action can return a friendly inline error.
-    serverActions: { bodySizeLimit: "15mb" },
+    serverActions: { bodySizeLimit: "20mb" },
   },
 };
 

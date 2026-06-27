@@ -487,11 +487,24 @@ export type ThesisStats = {
 };
 
 export function getThesisStats(db: DB, thesisId: string): ThesisStats {
+  const latestRunId =
+    (
+      db
+        .prepare(
+          "SELECT id FROM generation_run WHERE thesis_id = ? AND kind = 'prep_pack' AND status = 'done' ORDER BY created_at DESC, rowid DESC LIMIT 1",
+        )
+        .get(thesisId) as { id: string } | undefined
+    )?.id ?? null;
   const prepCount = (status: string) =>
-    (db.prepare("SELECT count(*) c FROM prep_item WHERE thesis_id = ? AND status = ?").get(thesisId, status) as { c: number }).c;
+    latestRunId === null
+      ? 0
+      : (db.prepare("SELECT count(*) c FROM prep_item WHERE generation_run_id = ? AND status = ?").get(latestRunId, status) as { c: number }).c;
   return {
     evidenceUnits: (db.prepare("SELECT count(*) c FROM evidence_unit WHERE thesis_id = ?").get(thesisId) as { c: number }).c,
-    prepTotal: (db.prepare("SELECT count(*) c FROM prep_item WHERE thesis_id = ?").get(thesisId) as { c: number }).c,
+    prepTotal:
+      latestRunId === null
+        ? 0
+        : (db.prepare("SELECT count(*) c FROM prep_item WHERE generation_run_id = ?").get(latestRunId) as { c: number }).c,
     prepVerified: prepCount("verified"),
     prepNeedsReview: prepCount("needs_review"),
     prepUnsafe: prepCount("unsafe"),

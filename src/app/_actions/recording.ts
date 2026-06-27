@@ -10,7 +10,7 @@ import { recordingPath, recordingsRoot } from "../../lib/stt/path";
 
 export type RecordState = { transcript: string | null; error: string | null };
 
-const MAX_AUDIO_BYTES = 15 * 1024 * 1024; // matches serverActions.bodySizeLimit
+const MAX_AUDIO_BYTES = 15 * 1024 * 1024; // intentionally below the 20 MB Server Action limit for multipart headroom
 
 export async function transcribeAnswerAction(formData: FormData): Promise<RecordState> {
   try {

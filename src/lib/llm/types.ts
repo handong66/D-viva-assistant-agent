@@ -28,8 +28,8 @@ export interface LlmClient {
 
 /** The single seam that touches a model provider. Implemented by aiSdkTransport(). */
 export interface LlmTransport {
-  object(model: string, schema: z.ZodType<unknown>, prompt: string, system?: string): Promise<unknown>;
-  text(model: string, prompt: string, system?: string): Promise<string>;
+  object(model: string, schema: z.ZodType<unknown>, prompt: string, system?: string, signal?: AbortSignal): Promise<unknown>;
+  text(model: string, prompt: string, system?: string, signal?: AbortSignal): Promise<string>;
 }
 
 export class LlmDisabledError extends Error {

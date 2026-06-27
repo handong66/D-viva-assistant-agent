@@ -33,6 +33,7 @@ export function googleSttTransport(): SttTransport {
             config,
             audio: { content: audio.toString("base64") },
           }),
+          signal: AbortSignal.timeout(20_000),
         },
       );
       if (!response.ok) throw new Error(`Google STT request failed with status ${response.status}`);

@@ -29,10 +29,14 @@ function providerOf(model: string): string {
   return slash > 0 ? model.slice(0, slash) : "unknown";
 }
 
-function withTimeout<R>(p: Promise<R>, ms: number): Promise<R> {
+function withTimeout<R>(op: (signal: AbortSignal) => Promise<R>, ms: number): Promise<R> {
+  const controller = new AbortController();
   return new Promise<R>((resolve, reject) => {
-    const t = setTimeout(() => reject(new LlmTimeoutError(ms)), ms);
-    p.then(
+    const t = setTimeout(() => {
+      controller.abort();
+      reject(new LlmTimeoutError(ms));
+    }, ms);
+    op(controller.signal).then(
       (v) => { clearTimeout(t); resolve(v); },
       (e) => { clearTimeout(t); reject(e); },
     );
@@ -45,13 +49,13 @@ export function createLlmClient(transport: LlmTransport, deps: ClientDeps): LlmC
     role: LlmRole,
     purpose: string,
     thesisId: string | undefined,
-    op: (model: string) => Promise<R>,
+    op: (model: string, signal: AbortSignal) => Promise<R>,
   ): Promise<R> {
     const model = deps.resolveModel(role);
     const provider = providerOf(model);
     const started = Date.now();
     try {
-      const result = await withTimeout(op(model), timeoutMs);
+      const result = await withTimeout((signal) => op(model, signal), timeoutMs);
       deps.logCall({ thesisId, purpose, provider, model, latencyMs: Date.now() - started, status: "ok" });
       return result;
     } catch (err) {
@@ -67,14 +71,14 @@ export function createLlmClient(transport: LlmTransport, deps: ClientDeps): LlmC
   return {
     enabled: true,
     generateObject<T>(args: GenerateObjectArgs<T>): Promise<T> {
-      return run(args.role, args.purpose, args.thesisId, async (model) => {
-        const raw = await transport.object(model, args.schema, args.prompt, args.system);
+      return run(args.role, args.purpose, args.thesisId, async (model, signal) => {
+        const raw = await transport.object(model, args.schema, args.prompt, args.system, signal);
         return args.schema.parse(raw);
       });
     },
     generateText(args: GenerateTextArgs): Promise<string> {
-      return run(args.role, args.purpose, args.thesisId, (model) =>
-        transport.text(model, args.prompt, args.system),
+      return run(args.role, args.purpose, args.thesisId, (model, signal) =>
+        transport.text(model, args.prompt, args.system, signal),
       );
     },
   };

@@ -86,7 +86,8 @@ describe("runPrepPackGeneration", () => {
       "post-bind evidence read failed",
     );
 
-    expect((db.prepare("SELECT count(*) c FROM prep_item_evidence WHERE evidence_unit_id='e1'").get() as { c: number }).c).toBe(1);
+    expect((db.prepare("SELECT count(*) c FROM prep_item_evidence WHERE evidence_unit_id='e1'").get() as { c: number }).c).toBe(0);
+    expect((db.prepare("SELECT count(*) c FROM prep_item WHERE thesis_id='t1'").get() as { c: number }).c).toBe(0);
     const run = db.prepare("SELECT status, error FROM generation_run WHERE thesis_id='t1'").get() as {
       status: string;
       error: string | null;

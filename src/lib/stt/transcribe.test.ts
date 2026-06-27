@@ -102,4 +102,28 @@ describe("transcribeRecording", () => {
     });
     db.close();
   });
+
+  it("marks an empty transcript as an error instead of saving blank ok text", async () => {
+    const db = makeTestDb();
+    seed(db);
+    await insertRecording(db, {
+      id: "rec4",
+      thesisId: "t1",
+      mimeType: "audio/webm",
+      languageMode: "english",
+      audioPath: "recordings/rec4.webm",
+    });
+
+    const result = await transcribeRecording(db, new MockSttTransport("  "), {
+      recordingId: "rec4",
+      audio: Buffer.from([1]),
+    });
+
+    expect(result).toEqual({ status: "error" });
+    expect(db.prepare("SELECT stt_status, stt_error FROM recording WHERE id=?").get("rec4")).toMatchObject({
+      stt_status: "error",
+      stt_error: "No speech was recognized in the recording.",
+    });
+    db.close();
+  });
 });

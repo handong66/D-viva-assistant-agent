@@ -10,10 +10,11 @@ describe("getThesisStats", () => {
       INSERT INTO thesis_chunk (id,thesis_id,ord,text,char_count,hash) VALUES ('c1','t1',0,'x',1,'h');
       INSERT INTO evidence_unit (id,thesis_id,chunk_id,char_start,char_end,text,hash) VALUES ('e1','t1','c1',0,1,'x','h');
       INSERT INTO evidence_unit (id,thesis_id,chunk_id,char_start,char_end,text,hash) VALUES ('e2','t1','c1',0,1,'y','h');
-      INSERT INTO prep_item (id,thesis_id,type,title,status,validation_status,validator_version,source) VALUES ('p1','t1','qa','A','verified','passed','1','generated');
-      INSERT INTO prep_item (id,thesis_id,type,title,status,validation_status,validator_version,source) VALUES ('p2','t1','qa','B','needs_review','needs_review','1','generated');
-      INSERT INTO prep_item (id,thesis_id,type,title,status,validation_status,validator_version,source) VALUES ('p3','t1','qa','C','unsafe','failed','1','generated');
-      INSERT INTO prep_item (id,thesis_id,type,title,status,validation_status,validator_version,source) VALUES ('p4','t1','qa','D','draft','needs_review','0','manual');
+      INSERT INTO generation_run (id,thesis_id,kind,status) VALUES ('g1','t1','prep_pack','done');
+      INSERT INTO prep_item (id,thesis_id,generation_run_id,type,title,status,validation_status,validator_version,source) VALUES ('p1','t1','g1','qa','A','verified','passed','1','generated');
+      INSERT INTO prep_item (id,thesis_id,generation_run_id,type,title,status,validation_status,validator_version,source) VALUES ('p2','t1','g1','qa','B','needs_review','needs_review','1','generated');
+      INSERT INTO prep_item (id,thesis_id,generation_run_id,type,title,status,validation_status,validator_version,source) VALUES ('p3','t1','g1','qa','C','unsafe','failed','1','generated');
+      INSERT INTO prep_item (id,thesis_id,generation_run_id,type,title,status,validation_status,validator_version,source) VALUES ('p4','t1','g1','qa','D','draft','needs_review','0','manual');
       INSERT INTO practice_run (id,thesis_id,question,question_kind,status) VALUES ('pr1','t1','Q','random','practice');
       INSERT INTO review_item (id,thesis_id,practice_run_id,dimension,score,status) VALUES ('ri1','t1','pr1','evidence',2,'open');
       INSERT INTO review_item (id,thesis_id,practice_run_id,dimension,score,status) VALUES ('ri2','t1','pr1','clarity',1,'fixed');
