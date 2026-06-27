@@ -38,7 +38,9 @@ export function googleSttTransport(): SttTransport {
       );
       if (!response.ok) {
         const detail = await response.text().catch(() => "");
-        if (response.status === 400 && /too long|longer than|longrunningrecognize|use .{0,3}uri/i.test(detail)) {
+        // Narrow to Google's strong sync-length markers; weaker "longer than"/"use a uri" phrases
+        // could appear in unrelated 400s (bad key/encoding), which must stay generic errors.
+        if (response.status === 400 && /too long|longrunningrecognize/i.test(detail)) {
           throw new SttTooLongError();
         }
         throw new Error(`Google STT request failed with status ${response.status}`);
