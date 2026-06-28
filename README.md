@@ -237,7 +237,7 @@ On macOS this is normally under:
 ~/Library/Application Support/D-viva-assistant-agent/
 ```
 
-Existing local data from the previous project identity is not migrated automatically. To preserve old data, manually copy or rename `./data/viva.sqlite` to `./data/d-viva-assistant-agent.sqlite`, or copy `~/Library/Application Support/Viva Assistant/viva.sqlite` into `~/Library/Application Support/D-viva-assistant-agent/d-viva-assistant-agent.sqlite`. If an existing `.env.local` explicitly sets `VIVA_DB_PATH=./data/viva.sqlite`, update that value or it will keep using the old development database path.
+Existing local data from the previous project identity is not migrated automatically. To preserve old web/dev data, manually copy or rename `./data/viva.sqlite` to `./data/d-viva-assistant-agent.sqlite`. To preserve old Electron data, fully quit both old and new Electron app builds first, then copy `viva.sqlite` plus any matching `viva.sqlite-shm` / `viva.sqlite-wal` files from the old app-data directory into `~/Library/Application Support/D-viva-assistant-agent/`, renaming them to `d-viva-assistant-agent.sqlite`, `d-viva-assistant-agent.sqlite-shm`, and `d-viva-assistant-agent.sqlite-wal`. If you need old Electron recordings, copy the old `recordings/` directory into the new app-data directory as well. Depending on which old build was launched, the old Electron app-data directory may be `~/Library/Application Support/viva-assistant/` or `~/Library/Application Support/Viva Assistant/`. If an existing `.env.local` explicitly sets `VIVA_DB_PATH=./data/viva.sqlite`, update that value or it will keep using the old development database path.
 
 Do not commit `dist-electron/`, generated `.next/`, local databases, recordings, or environment files.
 

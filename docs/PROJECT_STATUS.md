@@ -40,7 +40,8 @@ Last verified from the local repository on 2026-06-28.
 - PDF extraction can be imperfect; Markdown/plain text remains the reliable import fallback.
 - Electron packaging is macOS-focused and unsigned.
 - The design spec still contains some forward-looking implementation notes; use code plus README for the current runtime snapshot.
-- Existing local data from the prior project identity is not migrated automatically; preserve it by manually copying or renaming the old SQLite file into the new default path.
+- Existing local data from the prior project identity is not migrated automatically; preserve it by manually copying or renaming the old SQLite file into `./data/d-viva-assistant-agent.sqlite`.
+- Prior Electron data may be under `~/Library/Application Support/viva-assistant/` or `~/Library/Application Support/Viva Assistant/`; README documents manual copy/rename steps for the SQLite file, WAL/SHM sidecars, and optional recordings directory.
 - Existing untracked `.env.local` files that pin `VIVA_DB_PATH=./data/viva.sqlite` continue to use that old path until manually updated.
 
 ## Verification Commands

@@ -25,6 +25,7 @@
 
 ## Naming Policy
 - `VIVA_*` env var names are intentionally stable for compatibility and because `viva` is domain language; do not rename them without a separate compatibility migration plan.
+- Search gates must distinguish old project identity from the new name: `D-viva-assistant-agent` and `d-viva-assistant-agent` intentionally contain the `viva-assistant` substring. Use exact stale patterns such as `(?<!\b[Dd]-)viva-assistant(?:-agent)?`, `Viva Assistant`, `com\.viva\.assistant`, `viva\.sqlite`, `__vivaDb`, and `__vivaDbPath`.
 
 ## Canonical commands
 - `npm run dev` · `npm test`(vitest) · `npm run typecheck`(tsc) · `npm run lint` · `npm run build`
