@@ -1,7 +1,7 @@
 # viva-assistant · 通用论文答辩准备应用 — v1 设计 (Spec)
 
 - 日期：2026-06-23
-- 状态：设计待用户确认（brainstorming 产出）。**已过两轮 Codex 设计互评**：P0-1 CLOSED；P0-2 经第二轮补 join DDL 不变式 + 校验器分级后闭合（见 §20 修订记录）。
+- 状态：v1 设计已进入实现；截至 2026-06-27，本仓库已有可运行的 Next.js 本地应用、SQLite/证据/AI/STT/Electron 基线。当前运行态快照见 `README.md` 与 `docs/PROJECT_STATUS.md`；本文保留设计背景并同步关键实现差异。
 - 来源：以 `MPhil-Thesis-fork/viva_prep/app`（Han Dong 硕士答辩训练 app）为参考蓝本，干净重构为面向**任意论文**的通用工具。
 
 ---
@@ -29,9 +29,9 @@
 |---|---|
 | v1 形态 | 本地单用户工具，一次专注一篇论文（表结构允许多篇，UI 暂只暴露单篇） |
 | 内容策略 | 混合：导入即 AI 生成备考包 + 保留实时考官 + 用户可编辑 |
-| AI 供应商 | 供应商无关，AI SDK `"provider/model"` 字符串 + Gateway-ready；Gemini/GCP 一等支持 |
+| AI 供应商 | 供应商无关，AI SDK `"provider/model"` 字符串 + Gateway-ready；当前运行态需 `AI_GATEWAY_API_KEY` 才创建 LLM client |
 | 迁移打法 | 干净重构（参考旧 app 思路，不照搬代码） |
-| 技术栈 | Next.js (App Router) + AI SDK v6 + better-sqlite3 + Tailwind/shadcn |
+| 技术栈 | Next.js (App Router) + AI SDK (`ai` package) + better-sqlite3 + Tailwind CSS + Electron(macOS packaging) |
 | STT + 录音 | **保留在 v1**（录音存档 → 转写 → 判分） |
 | 训练计划 | 保留为多日训练计划功能（默认 15 天模板，可编辑/重生成，不写死日期） |
 | Slides/讲稿系统 | **砍掉**（参考 app 本就 paused，且是"做 PPT 答辩"专属） |
@@ -46,8 +46,8 @@
 
 **隐私与网络边界（P0-1 决议：本地优先 + 云 AI 可选并明告）**：
 - **本地**：SQLite 库、录音、论文原文件**只存本机**；不上云同步、不做账号体系。"本地优先"= 你的数据不离开本机，**除非**作为请求 payload 发给你自己配置的 AI/STT 供应商。
-- **AI 是可选外呼**：仅当解析到 provider key 时启用；无 key → 优雅禁用（仍可练习、保留 transcript/录音，不出 AI 分）。
-- **明告（disclosure）**：设置页与首次启用时明确告知"会把哪些内容（论文摘录 / 题目 / 你的回答 / 转写稿）发给哪个供应商"，用户确认后才外呼。
+- **AI 是可选外呼**：当前运行态要求 `VIVA_AI_ENABLED=true`、解析到 provider key、且 `AI_GATEWAY_API_KEY` 存在才启用；无 key / Gateway 未配 → 优雅禁用（仍可导入、保留 transcript/录音、生成静态计划，不出 AI 分）。
+- **明告（disclosure）**：`/library` 页面明确告知"会把哪些内容（论文摘录 / 题目 / 你的回答 / 转写稿）发给哪个供应商"，用户触发对应动作才外呼。
 - **STT**：默认 `off`；`browser`（端上 Web Speech）；`google_cloud`（显式 opt-in，需 GCP 凭证）。
 - **密钥**：`.env.example` 只放空占位（**不含**任何真实项目 id）；真实值（如你的 GCP 项目 `viva-496115`）放 gitignored 的 `.env.local`。日志对密钥脱敏。真实模型调用仅 `RUN_LIVE_AI=1` 且对公开样本。
 
@@ -55,43 +55,44 @@
 
 ## 4. 技术栈
 
-- **Next.js (App Router) + TypeScript** — 前后端一体，Server Actions / Route Handlers 承接服务端逻辑。
-- **AI SDK v6（`ai`）** — 供应商无关；`generateObject` + zod 拿结构化判分/生成结果；`"provider/model"` 字符串经 AI Gateway，或 `@ai-sdk/google` / `@ai-sdk/google-vertex` / `@ai-sdk/anthropic` / `@ai-sdk/openai` 直连。
+- **Next.js (App Router) + TypeScript** — 前后端一体，Server Actions 承接服务端逻辑。
+- **AI SDK（`ai` package）** — 供应商无关；当前通过 `generateText` + `Output.object({ schema })` + zod 拿结构化判分/生成结果；`"provider/model"` 字符串经 AI Gateway。
 - **better-sqlite3** — 本地单文件库，同步 API。**Next.js 边界（P1-5）**：仅 Node runtime（触库的 route/action 标 `export const runtime = "nodejs"`）；`next.config` 设 `serverExternalPackages: ["better-sqlite3"]`；db 模块 `import "server-only"`；开 WAL；用 `globalThis` 单例防 HMR 多实例；M0 跑一次 `next build` 冒烟。
-- **Tailwind CSS + shadcn/ui** — 组件层。
+- **Tailwind CSS** — 组件层；当前未引入 shadcn 组件库。
 - **zod** — schema 校验（贯穿 LLM 输出、ingest、API 边界）。
 - **unpdf**（PDF 文本抽取，按页）— Markdown/TXT 直通。
-- **vitest** + **Playwright** — 单元/集成 + 端到端（默认 mock LLM，不调真实模型）。
+- **vitest** — 单元/集成测试（默认 mock LLM/STT，不调真实模型）。
+- **Electron + electron-builder** — macOS 本地 unsigned `.app` 包装，内部启动 Next standalone server。
 
 ---
 
 ## 5. 架构与模块边界
 
 ```
-app/                     Next.js App Router（页面 + Server Actions / Route Handlers，触库处 runtime=nodejs）
-  import / today / materials / practice / review / library / settings
+src/app/                 Next.js App Router（页面 + Server Actions，触库处 runtime=nodejs）
+  / / import / materials / materials/[id]/edit / plan / practice / review / library
 lib/
   llm/
     model-registry.ts    按角色 role 从 env 解析 provider/model（fast/default/hard）
-    client.ts            LlmClient 接口 + AI SDK 实现：generateObject/generateText + 重试/超时/降级 + ai_call_log
+    client.ts            LlmClient 接口 + AI SDK transport：generateObject/generateText + 超时/降级 + ai_call_log
     mock.ts              MockLlmClient（确定性 fixture，测试默认注入）
     judge.ts / examiner.ts / prep-pack.ts
   ingest/
     extract.ts           PDF/MD/TXT → 段落（+ 质量报告）
     chunk.ts             段落 → thesis_chunk + evidence_unit（ingest-only 主证据）
   evidence/
-    retrieval.ts         基于 evidence_fts(FTS5) 的检索 + 章节覆盖度
-    validator.ts         落库前校验：绑定存在性 + 关键数字值出现在绑定证据文本中
+    validator.ts         落库前校验：绑定存在性 + 关键数字值/精确引文出现在绑定证据文本中
   stt/
-    index.ts / mock.ts   SttClient 接口 + google_cloud|browser|off + MockSttClient
-  plan/                  多日训练计划模板（默认 15 天，可编辑/重生成）
-db/
+    index.ts / google.ts / mock.ts / path.ts   google_cloud|browser|off + MockSttTransport
+  plan.ts                多日训练计划模板（默认 15 天，3-30 天可选）
+src/db/
   client.ts              better-sqlite3 单例（server-only, WAL, HMR guard）
-  schema.ts              建表 DDL（FK/约束/索引）
-  migrations/            numbered 迁移 + schema_migrations 版本表
+  migrations/            嵌入式 TS 迁移 + schema_migrations 版本表（无 db/schema.ts）
   repository.ts          所有读写封装（无裸 SQL 散落）；解析 active thesis
-  seed-sample.ts         载入公开样本论文 fixture（开发用）
-samples/                 公开样本论文（文本 fixture）+ 生成包快照
+electron/
+  main.cjs               macOS desktop wrapper，启动 Next standalone server
+scripts/
+  pack-electron.mjs      standalone build + Electron packaging + better-sqlite3 ABI rebuild
 ```
 
 **与参考 app 映射**：`lib/llm/judge`←`ai-judge.ts`；`lib/llm/examiner`←`examiner-generator.ts`；`lib/llm/prep-pack`←手写 `training_materials/*.md`（改为 AI 生成）；`lib/ingest`←`thesis-evidence.ts` 的 `buildChunks`（丢 docx+Python）；`lib/stt`←`server/stt.ts`；`db`←`server/schema.ts`；`app/*`←`src/main.tsx`（拆成干净组件）。
@@ -106,7 +107,7 @@ samples/                 公开样本论文（文本 fixture）+ 生成包快照
 - **thesis** — `id, title, author?, abstract?, source_kind(pdf|md|txt), source_meta(json), is_active, created_at, updated_at`。**单篇活跃语义（P1-7）**：partial unique index `WHERE is_active=1`；切换论文 = archive 旧、置新 active（repository 提供 `replaceActiveThesis`）。
 - **thesis_chunk** — `id, thesis_id FK, section?, ord, text, char_count, hash`。
 - **evidence_unit** — `id, thesis_id FK, chunk_id FK, section?, page?, char_start, char_end, text, hash`。**ingest-only 主证据（P0-2）**：只从论文原文抽取，绝不指向 AI 衍生物；去掉旧的多态 `ref_table/ref_id` 与 kind 漂移（P2-15）。
-- **evidence_fts** — FTS5 **external-content** 虚表（`tokenize=unicode61`），由 `evidence_unit` 经 insert/delete/update 触发器同步（或 ingest 事务内重建）；查询做转义；启动 `CREATE VIRTUAL TABLE … USING fts5` 可用性冒烟。**覆盖度** = 有 ≥1 可检索 evidence_unit 的章节占比。**仅 Node 本地运行，不部署 Edge/serverless**（P1-8/复评#3）。
+- **evidence_fts** — FTS5 内容表（`evidence_unit_id UNINDEXED, text`, `tokenize=unicode61`），由 `evidence_unit` 经 insert/delete/update 触发器同步；查询端将用户 topic token 化并 quote 后再 `MATCH`。**仅 Node 本地运行，不部署 Edge/serverless**（P1-8/复评#3）。
 
 **生成与训练**
 - **prep_item** — `id, thesis_id FK, generation_run_id? FK, type(digest|key_number|qa|hostile|theory_card|citation_card), title, body(json), claim_text?, evidence_quote?, support_kind(existence|exact_quote|numeric|llm_suggested), value_numeric?, unit?, status(verified|needs_review|unsafe|draft), validation_status(passed|needs_review|failed), validator_version, source(generated|edited|manual), created_at, updated_at, verified_at?`。`key_number` 用 `value_numeric/unit` 归一化；编辑正文 → 退回 `needs_review` 重跑校验（P2-16 + 复评#5 provenance）。
@@ -153,7 +154,7 @@ samples/                 公开样本论文（文本 fixture）+ 生成包快照
 
 ## 8. LLM 供应商无关层
 
-- `model-registry.ts`：按 `role`∈{`fast`,`default`,`hard`} 从 env 解析模型串（`VIVA_MODEL_DEFAULT/HARD/FAST`）。值形如 `google/gemini-2.5-flash`、`anthropic/claude-...`、`openai/...`；经 AI Gateway 或 provider 包直连。Gemini Vertex 经 `@ai-sdk/google-vertex` + env（**不硬编码项目 id**）。
+- `model-registry.ts`：按 `role`∈{`fast`,`default`,`hard`} 从 env 解析模型串（`VIVA_MODEL_DEFAULT/HARD/FAST`）。值形如 `anthropic/claude-...`、`openai/...`、`google/...`；当前运行态经 AI Gateway 创建 LLM client，未在各业务模块直连 provider SDK（**不硬编码项目 id**）。
 - `client.ts`：`LlmClient` 接口（`generateJson`/`generateText`）+ AI SDK 实现；统一超时（默认 25s）、重试、错误归一化；每次写 `ai_call_log`。**降级**：无可用 key → AI disabled（练习/transcript 仍可用）。**注入式（P1-13）**：测试默认注入 `MockLlmClient`。
 - **跨供应商结构化输出（P1-4）**：`generateObject`+zod 在 Gemini/Anthropic/OpenAI/Vertex 上的一致性尚属假设；M0 加 judge/prep schema 的 conformance canary + per-role fallback/repair。
 - 轻量数字/危险表达检查优先 deterministic，必要才调模型。
@@ -195,33 +196,33 @@ samples/                 公开样本论文（文本 fixture）+ 生成包快照
 
 ## 13. 训练计划（v1 保留）
 
-默认 15 天模板（通用化：去作者专属日期/slide 引用，保留"读材料→核心训练→AI 训练→复盘"每日结构）。可编辑/重生成。**早期里程碑先 stub/静态（P2-17）**，待 judge+复盘稳定再做计划打磨。
+默认 15 天模板（通用化：去作者专属日期/slide 引用，保留"读材料→核心训练→AI 训练→复盘"每日结构）。当前 UI 支持 3–30 天；AI 可用时生成个性化计划，AI 关闭或生成失败时保存静态模板。
 
 ---
 
-## 14. 配置与环境变量（草案）
+## 14. 配置与环境变量
 
 ```
-# LLM —— AI 仅在解析到 key 时启用；无 key 优雅降级；测试始终走 mock
+# LLM —— AI 仅在 VIVA_AI_ENABLED=true 且 Gateway/key 就绪时启用；测试始终走 mock
 VIVA_AI_ENABLED=true
-VIVA_MODEL_DEFAULT=google/gemini-2.5-flash
-VIVA_MODEL_HARD=google/gemini-2.5-pro
-VIVA_MODEL_FAST=google/gemini-2.5-flash-lite
-AI_GATEWAY_API_KEY=            # 走 Gateway 时
-GOOGLE_GENERATIVE_AI_API_KEY=  # 或直连 provider（留空）
+VIVA_MODEL_DEFAULT=anthropic/claude-sonnet-4.6
+VIVA_MODEL_HARD=anthropic/claude-opus-4.8
+VIVA_MODEL_FAST=anthropic/claude-sonnet-4.6
+AI_GATEWAY_API_KEY=
+GOOGLE_GENERATIVE_AI_API_KEY=
 ANTHROPIC_API_KEY=
 OPENAI_API_KEY=
-# Gemini Vertex（真实项目 id 放 .env.local，勿提交）
-GOOGLE_VERTEX_PROJECT=         # e.g. 你的项目，仅本地
-GOOGLE_VERTEX_LOCATION=global
+GOOGLE_VERTEX_PROJECT=
+GOOGLE_APPLICATION_CREDENTIALS=
 # STT（默认 off；google_cloud 为显式 opt-in）
 STT_PROVIDER=off
-GOOGLE_APPLICATION_CREDENTIALS=
+GOOGLE_STT_API_KEY=
+RECORDINGS_DIR=
 # 测试 / DB
 RUN_LIVE_AI=                   # 仅设为 1 时才发真实模型调用（对公开样本）
 VIVA_DB_PATH=./data/viva.sqlite
 ```
-启动时做 config 校验（缺失/冲突给清晰报错）；日志对密钥脱敏（P1-12）。**有效启用 = `VIVA_AI_ENABLED=true` 且解析到 provider key**（缺一即 disabled；该判定有单测覆盖，复评#7）。
+启动时做 config 校验（缺失/冲突给清晰报错）；日志对密钥脱敏（P1-12）。**当前有效启用 = `VIVA_AI_ENABLED=true` 且解析到 provider key 且 `AI_GATEWAY_API_KEY` 存在**；否则返回 disabled client。`RECORDINGS_DIR` 由 `src/lib/stt/path.ts` 直接解析，空值回退到 `./recordings`。
 
 ---
 
@@ -230,14 +231,14 @@ VIVA_DB_PATH=./data/viva.sqlite
 - **单元**：ingest 切块 + 质量报告、prep-pack zod 校验、`validator`（含关键数字绑定）、judge 输出解析、五维路由、迁移/repository。
 - **集成**：导入→生成→训练→判分 happy path，**注入 `MockLlmClient`/`MockSttClient`**（确定性 fixture）。加断言：常规测试**无法**解析到真实 key（P1-13）。
 - **供应商 conformance canary（P1-4）**：judge/prep schema 跨 provider 结构化输出（env-gated）。
-- **端到端**：Playwright 主路径（mock）。
+- **生产编译**：涉及路由/config/打包时跑 `npm run build`。
 - **真实 AI 冒烟**：`RUN_LIVE_AI=1` 才发一次真实调用，对公开样本。
 
 ---
 
 ## 16. 样本论文
 
-开发期用一篇**公开可下载、开放许可**的硕/博论文做 fixture：转文本存 `samples/`，附生成包快照供断言。开工时提候选给用户拍板（或自带）。
+公开样本 fixture 仍未落地；当前 README 明确标为 known limitation。真实 AI/STT 冒烟只能用公开样本内容，不能用个人论文数据。
 
 ---
 
@@ -245,10 +246,10 @@ VIVA_DB_PATH=./data/viva.sqlite
 
 - **PDF 抽取质量**：已加质量报告 + 质量门（§9），Markdown/文本为可靠主路径。
 - **生成幻觉**：已加关系型证据绑定 + 落库前校验器 + 关键数字归一化（§6）。
-- **跨 provider 结构化输出**：仍属假设 → M0 conformance canary 验证（§8/§15）。
-- **Next.js + better-sqlite3**：已定 runtime/打包/单例边界（§4），M0 build 冒烟。
-- **五维 rubric 具体维度**：默认草案，实现期细化。
-- **AI SDK v6 / Next API**：实现前以官方文档/skill 校准，不凭记忆写。
+- **跨 provider 结构化输出**：当前运行态经 AI Gateway 走统一 `lib/llm`；真实跨 provider 仍需 env-gated canary 验证（§8/§15）。
+- **Next.js + better-sqlite3**：已定 runtime/打包/单例边界（§4），`npm run build` 与 Electron standalone 包装已跑通。
+- **五维 rubric**：已落为 `evidence|clarity|completeness|boundary|delivery`，低分理由进入 review queue。
+- **AI SDK / Next API**：当前实现使用 `ai` 包与 Next 16；未来升级仍需官方文档校准，不凭记忆写。
 
 ---
 
@@ -285,11 +286,11 @@ VIVA_DB_PATH=./data/viva.sqlite
   - P0-2 证据绑定可强制 → §6 evidence_unit 改 ingest-only + 关系型 join 表 + 关键数字归一化 + 落库前 validator。
   - P1：better-sqlite3/Next runtime 边界(§4)、schema 约束/迁移(§6)、单篇活跃语义(§6)、FTS/检索(§6/§11)、generation_run(§6/§10)、recording 字段(§6/§12)、注入式 Mock 客户端(§5/§8/§15)、M0 前置去风险(§19)、conformance canary(§8/§15)、env 安全默认(§14)。
   - P2：enum 归一(§6)、编辑退回 needs_review(§6)、计划晚做打磨(§13)、内容准确性面板定义(§7)。
-- **2026-06-23 Codex 复评（fresh thread，CONDITIONAL GO → 已并入）**：P0-1 判 **CLOSED**；P0-2 由 PARTIAL 补强至闭合 —— join 表 DDL 不变式（复合 PK/级联/同论文/最小基数/`foreign_keys=ON`）+ **校验器分级**（L1–L3 确定性才 `verified`，L4 LLM 仅建议）；generation/validation provenance（`generation_run_id` + `validation_status`/`validator_version`）；FTS5 external-content + 触发器同步 + 仅 Node 运行；**M0 拆 M0a/M0b/M0c**；recording 单向 FK；env 有效启用语义；枚举归一（`generation_run.kind`/`question_kind`/`dimension`/`language_mode`）。
+- **2026-06-23 Codex 复评（fresh thread，CONDITIONAL GO → 已并入）**：P0-1 判 **CLOSED**；P0-2 由 PARTIAL 补强至闭合 —— join 表 DDL 不变式（复合 PK/级联/同论文/最小基数/`foreign_keys=ON`）+ **校验器分级**（L1–L3 确定性才 `verified`，L4 LLM 仅建议）；generation/validation provenance（`generation_run_id` + `validation_status`/`validator_version`）；FTS5 + 触发器同步 + 仅 Node 运行（当前迁移为内容表而非 external-content）；**M0 拆 M0a/M0b/M0c**；recording 单向 FK；env 有效启用语义；枚举归一（`generation_run.kind`/`question_kind`/`dimension`/`language_mode`）。
 
 ---
 
 ## 21. 下一步
 
-1. 用户审阅本修订版 spec（已过两轮 Codex 互评，P0 闭合）。
-2. 进入 `writing-plans`，按 §19 里程碑（M0a/b/c → M6）产出实现计划，每里程碑内置 Codex 互评 gate。
+1. 继续以 `README.md` + `docs/PROJECT_STATUS.md` 作为当前运行态入口。
+2. 后续功能变更按 AGENTS.md 的 doc-sync 集合同步：spec / plans / code / env / README 一起更新。

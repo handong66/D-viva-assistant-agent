@@ -1,6 +1,6 @@
 # AGENTS.md — viva-assistant Cold-Start Contract
 
-> 给 Claude 和 Codex 的最小冷启动契约。90 秒读完即可做安全工作。详情在设计 spec 与（待建）`docs/plans/`。
+> 给 Claude 和 Codex 的最小冷启动契约。90 秒读完即可做安全工作。详情在设计 spec 与 `docs/superpowers/plans/`。
 > 项目：通用论文答辩准备应用（任意论文 → AI 备考包 + 实时考官 + 五维判分 + 复盘）。从 `MPhil-Thesis-fork/viva_prep` 干净重构而来。
 
 ## Red Lines — 没读别的也要守
@@ -23,7 +23,7 @@
 - DB schema (`src/db/migrations/*.ts`，嵌入式 TS 迁移；无 `db/schema.ts`) ↔ spec §6 数据模型。
 - env 契约 (`.env.example`) ↔ spec §14。
 
-## Canonical commands（M0 脚手架时落地）
+## Canonical commands
 - `npm run dev` · `npm test`(vitest) · `npm run typecheck`(tsc) · `npm run lint` · `npm run build`
 
 ## What this file is not

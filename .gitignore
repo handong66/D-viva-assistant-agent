@@ -49,8 +49,8 @@ data/
 *.sqlite-shm
 *.sqlite-wal
 recordings/
-coverage/
 dist-electron/
+.opencode-plugin-codex/
 
 # allow the committed env template
 !.env.example
