@@ -1,6 +1,16 @@
-# Project Status
+# D-viva-assistant-agent Project Status
 
-Last verified from the local repository on 2026-06-27.
+Last verified from the local repository on 2026-06-28.
+
+## Project Identity
+
+- GitHub repository: `handong66/D-viva-assistant-agent`
+- npm package: `d-viva-assistant-agent`
+- Electron product name: `D-viva-assistant-agent`
+- Electron appId: `com.handong66.dvivaassistantagent`
+- Default web/dev database: `./data/d-viva-assistant-agent.sqlite`
+- Default Electron database: `<Electron userData>/d-viva-assistant-agent.sqlite`
+- macOS Electron data directory: `~/Library/Application Support/D-viva-assistant-agent/`
 
 ## Implemented
 
@@ -29,6 +39,7 @@ Last verified from the local repository on 2026-06-27.
 - PDF extraction can be imperfect; Markdown/plain text remains the reliable import fallback.
 - Electron packaging is macOS-focused and unsigned.
 - The design spec still contains some forward-looking implementation notes; use code plus README for the current runtime snapshot.
+- Existing local data from the prior project identity is not migrated automatically; preserve it by manually copying or renaming the old SQLite file into the new default path.
 
 ## Verification Commands
 

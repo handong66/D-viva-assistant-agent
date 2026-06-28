@@ -1,7 +1,7 @@
-# viva-assistant · 通用论文答辩准备应用 — v1 设计 (Spec)
+# D-viva-assistant-agent · 通用论文答辩准备应用 — v1 设计 (Spec)
 
 - 日期：2026-06-23
-- 状态：v1 设计已进入实现；截至 2026-06-27，本仓库已有可运行的 Next.js 本地应用、SQLite/证据/AI/STT/Electron 基线。当前运行态快照见 `README.md` 与 `docs/PROJECT_STATUS.md`；本文保留设计背景并同步关键实现差异。
+- 状态：v1 设计已进入实现；截至 2026-06-28，本仓库已有可运行的 Next.js 本地应用、SQLite/证据/AI/STT/Electron 基线。当前运行态快照见 `README.md` 与 `docs/PROJECT_STATUS.md`；本文保留设计背景并同步关键实现差异。
 - 来源：以 `MPhil-Thesis-fork/viva_prep/app`（Han Dong 硕士答辩训练 app）为参考蓝本，干净重构为面向**任意论文**的通用工具。
 
 ---
@@ -220,7 +220,7 @@ GOOGLE_STT_API_KEY=
 RECORDINGS_DIR=
 # 测试 / DB
 RUN_LIVE_AI=                   # 仅设为 1 时才发真实模型调用（对公开样本）
-VIVA_DB_PATH=./data/viva.sqlite
+VIVA_DB_PATH=./data/d-viva-assistant-agent.sqlite
 ```
 启动时做 config 校验（缺失/冲突给清晰报错）；日志对密钥脱敏（P1-12）。**当前有效启用 = `VIVA_AI_ENABLED=true` 且解析到 provider key 且 `AI_GATEWAY_API_KEY` 存在**；否则返回 disabled client。`RECORDINGS_DIR` 由 `src/lib/stt/path.ts` 直接解析，空值回退到 `./recordings`。
 

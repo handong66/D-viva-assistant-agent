@@ -10,7 +10,7 @@
 
 **Scope:** M0a (scaffold, runtime/env/config, lint, build smoke) + M0b (DB client, migrations, full schema DDL, evidence join invariants, FTS5, repository basics). **Out of scope (next plans):** M0c LLM client/registry/mock/canary + leveled validator; M1 ingest; M2+ features.
 
-**Spec:** `docs/superpowers/specs/2026-06-23-viva-assistant-generic-design.md` (§4 runtime boundaries, §6 data model, §14 env, §19 milestones).
+**Spec:** `docs/superpowers/specs/2026-06-23-D-viva-assistant-agent-generic-design.md` (§4 runtime boundaries, §6 data model, §14 env, §19 milestones).
 
 > **AS-BUILT correction (Codex M0 review, finding M1):** Migrations shipped as **embedded TS string modules** — `src/db/migrations/0001_init.ts`, `0002_fts.ts`, and `index.ts` (an ordered `{version, sql}[]` array), imported by `migrate.ts`. They are **NOT** `.sql` files read via `fs.readFileSync` — that approach would crash under Next.js production output-file tracing. Wherever Tasks 5–6 below show `.sql` files or an `fs`-based migration runner, the committed TS-string approach **supersedes** them. (`vitest.config.ts` was also created in Task 4, aliasing `server-only` to a no-op for Node tests, not in Task 5.)
 
@@ -62,7 +62,7 @@ Run:
 ```bash
 PRESERVE=$(cat .preserve-path)
 cp -R "$PRESERVE"/docs "$PRESERVE"/AGENTS.md ./
-printf '\n# viva-assistant\n.env\n.env.local\n.env*.local\ndata/\n*.sqlite\n*.sqlite-shm\n*.sqlite-wal\nrecordings/\ncoverage/\n' >> .gitignore
+printf '\n# D-viva-assistant-agent\n.env\n.env.local\n.env*.local\ndata/\n*.sqlite\n*.sqlite-shm\n*.sqlite-wal\nrecordings/\ncoverage/\n' >> .gitignore
 rm -rf "$PRESERVE" .preserve-path
 ```
 
@@ -161,10 +161,10 @@ describe("loadConfig", () => {
     expect(c.effectiveAiEnabled).toBe(false);
   });
 
-  it("defaults sttProvider to off and dbPath to ./data/viva.sqlite", () => {
+  it("defaults sttProvider to off and dbPath to ./data/d-viva-assistant-agent.sqlite", () => {
     const c = loadConfig({});
     expect(c.sttProvider).toBe("off");
-    expect(c.dbPath).toBe("./data/viva.sqlite");
+    expect(c.dbPath).toBe("./data/d-viva-assistant-agent.sqlite");
   });
 });
 ```
@@ -188,7 +188,7 @@ const EnvSchema = z.object({
   OPENAI_API_KEY: z.string().optional(),
   GOOGLE_VERTEX_PROJECT: z.string().optional(),
   STT_PROVIDER: z.enum(["off", "browser", "google_cloud"]).default("off"),
-  VIVA_DB_PATH: z.string().default("./data/viva.sqlite"),
+  VIVA_DB_PATH: z.string().default("./data/d-viva-assistant-agent.sqlite"),
   RUN_LIVE_AI: z.string().optional(),
 });
 
@@ -296,11 +296,11 @@ export function createDb(path: string): DB {
 }
 
 // HMR-safe singleton: reuse the connection across dev reloads.
-const g = globalThis as unknown as { __vivaDb?: DB };
+const g = globalThis as unknown as { __dVivaAssistantAgentDb?: DB };
 
 export function getDb(path: string): DB {
-  if (!g.__vivaDb) g.__vivaDb = createDb(path);
-  return g.__vivaDb;
+  if (!g.__dVivaAssistantAgentDb) g.__dVivaAssistantAgentDb = createDb(path);
+  return g.__dVivaAssistantAgentDb;
 }
 ```
 

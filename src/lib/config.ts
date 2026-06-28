@@ -10,7 +10,7 @@ const EnvSchema = z.object({
   GOOGLE_APPLICATION_CREDENTIALS: z.string().optional(),
   STT_PROVIDER: z.enum(["off", "browser", "google_cloud"]).default("off"),
   GOOGLE_STT_API_KEY: z.string().optional(),
-  VIVA_DB_PATH: z.string().default("./data/viva.sqlite"),
+  VIVA_DB_PATH: z.string().default("./data/d-viva-assistant-agent.sqlite"),
   RUN_LIVE_AI: z.string().optional(),
 });
 

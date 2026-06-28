@@ -69,7 +69,7 @@ export function searchEvidence(db: DB, thesisId: string, query: string, limit = 
 
 ### Task 3: spec doc-sync (AGENTS.md §"Doc-sync")
 
-**Files:** Modify `docs/superpowers/specs/2026-06-23-viva-assistant-generic-design.md`
+**Files:** Modify `docs/superpowers/specs/2026-06-23-D-viva-assistant-agent-generic-design.md`
 
 - [ ] Update the examiner/evidence section to note **FTS retrieval**: the `evidence_fts` index (already in §6/migration 0002) now has a reader `searchEvidence`, used as an optional topic filter that sources the examiner's candidates by BM25 relevance instead of the full pool; the stored `question_kind` is unchanged; grounding/binding is preserved. Commit — `git commit -m "docs(f3): spec — FTS topic retrieval for the examiner"`
 

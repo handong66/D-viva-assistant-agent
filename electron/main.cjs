@@ -49,16 +49,16 @@ async function main() {
       NODE_ENV: "production",
       PORT: String(port),
       HOSTNAME: "127.0.0.1",
-      VIVA_DB_PATH: path.join(userData, "viva.sqlite"),
+      VIVA_DB_PATH: path.join(userData, "d-viva-assistant-agent.sqlite"),
       RECORDINGS_DIR: path.join(userData, "recordings"),
     },
     stdio: "inherit",
   });
   serverProc.on("exit", (code) => {
-    if (code) console.error("[viva] server exited with code", code);
+    if (code) console.error("[D-viva-assistant-agent] server exited with code", code);
   });
   await waitPort(port);
-  const win = new BrowserWindow({ width: 1280, height: 860, title: "Viva Assistant" });
+  const win = new BrowserWindow({ width: 1280, height: 860, title: "D-viva-assistant-agent" });
   await win.loadURL(`http://127.0.0.1:${port}`);
 }
 

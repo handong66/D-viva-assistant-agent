@@ -1,4 +1,4 @@
-# AGENTS.md — viva-assistant Cold-Start Contract
+# AGENTS.md — D-viva-assistant-agent Cold-Start Contract
 
 > 给 Claude 和 Codex 的最小冷启动契约。90 秒读完即可做安全工作。详情在设计 spec 与 `docs/superpowers/plans/`。
 > 项目：通用论文答辩准备应用（任意论文 → AI 备考包 + 实时考官 + 五维判分 + 复盘）。从 `MPhil-Thesis-fork/viva_prep` 干净重构而来。
@@ -19,7 +19,7 @@
 - Codex 启动注意 `service_tier` 必须 `fast`/`flex`（否则起不来）。
 
 ## Doc-sync 一致性集 — 改一个必须一起改
-- 设计 spec (`docs/superpowers/specs/2026-06-23-viva-assistant-generic-design.md`) ↔ plan (`docs/superpowers/plans/…`) ↔ 代码。
+- 设计 spec (`docs/superpowers/specs/2026-06-23-D-viva-assistant-agent-generic-design.md`) ↔ plan (`docs/superpowers/plans/…`) ↔ 代码。
 - DB schema (`src/db/migrations/*.ts`，嵌入式 TS 迁移；无 `db/schema.ts`) ↔ spec §6 数据模型。
 - env 契约 (`.env.example`) ↔ spec §14。
 

@@ -10,7 +10,7 @@
 
 **Scope:** LLM client/types, model-registry, MockLlmClient, real client over injectable transport, factory + graceful degradation, `ai_call_log` helper, env-gated cross-provider canary. **Out of scope (next plans):** the leveled validator (→ M0d), ingest (M1), prep-pack/judge/examiner (M2/M3), UI.
 
-**Spec:** `docs/superpowers/specs/2026-06-23-viva-assistant-generic-design.md` §8 (provider-agnostic layer), §15 (mock-first tests), §14 (env). Builds on M0 (`src/lib/config.ts` `effectiveAiEnabled`, `src/db` schema with `ai_call_log`).
+**Spec:** `docs/superpowers/specs/2026-06-23-D-viva-assistant-agent-generic-design.md` §8 (provider-agnostic layer), §15 (mock-first tests), §14 (env). Builds on M0 (`src/lib/config.ts` `effectiveAiEnabled`, `src/db` schema with `ai_call_log`).
 
 > **AI SDK calibration (spec §17 — do not write AI SDK API from memory):** Only `src/lib/llm/transport.ts` (Task 7) touches the `ai` package. When implementing it, follow the `vercel:ai-sdk` skill: confirm `generateObject` / `generateText` signatures against `node_modules/ai/docs/` after install, and use AI Gateway `"provider/model"` strings. Confirmed current model IDs (from the gateway, 2026-06-24): `anthropic/claude-opus-4.8`, `anthropic/claude-sonnet-4.6`. Everything else in this plan is our own code and is fully specified.
 
@@ -65,7 +65,7 @@ printf '%s\n' \
 'STT_PROVIDER=off' \
 '# Tests / DB' \
 'RUN_LIVE_AI=' \
-'VIVA_DB_PATH=./data/viva.sqlite' \
+'VIVA_DB_PATH=./data/d-viva-assistant-agent.sqlite' \
 > .env.example
 printf '\n# allow the committed env template\n!.env.example\n' >> .gitignore
 git check-ignore .env.example >/dev/null && echo "STILL IGNORED — fix .gitignore" || echo "ok: .env.example is trackable"

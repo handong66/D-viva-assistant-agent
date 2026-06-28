@@ -1,8 +1,18 @@
-# Viva Assistant
+# D-viva-assistant-agent
 
 Local-first viva preparation for any thesis. Import a PDF, Markdown, or plain-text thesis, turn it into evidence units, generate grounded preparation materials, practise with an AI examiner, score answers on a five-dimension rubric, and review weak spots without moving your private thesis data into a hosted app.
 
-Last verified from the local repository on 2026-06-27.
+Last verified from the local repository on 2026-06-28.
+
+Repository: `handong66/D-viva-assistant-agent`
+
+Current project identity:
+
+- npm package: `d-viva-assistant-agent`
+- Electron product name: `D-viva-assistant-agent`
+- Electron appId: `com.handong66.dvivaassistantagent`
+- Default web/dev database: `./data/d-viva-assistant-agent.sqlite`
+- Default Electron database: `<Electron userData>/d-viva-assistant-agent.sqlite`
 
 ## Current Status
 
@@ -52,9 +62,9 @@ The app is still a local single-user tool. There are no accounts, hosted sync, m
 
 ## Privacy and Network Boundary
 
-Viva Assistant is local-first by design:
+D-viva-assistant-agent is local-first by design:
 
-- The SQLite database defaults to `./data/viva.sqlite` in web/dev mode.
+- The SQLite database defaults to `./data/d-viva-assistant-agent.sqlite` in web/dev mode.
 - Audio recordings default to `./recordings` in web/dev mode.
 - `.env*`, `data/`, `recordings/`, SQLite files, and Electron build output are ignored by git.
 - Imported thesis text, generated prep material, answers, recordings, and transcripts are stored locally.
@@ -138,7 +148,7 @@ RECORDINGS_DIR=
 
 # Tests / DB
 RUN_LIVE_AI=
-VIVA_DB_PATH=./data/viva.sqlite
+VIVA_DB_PATH=./data/d-viva-assistant-agent.sqlite
 ```
 
 AI is effectively usable only when:
@@ -215,15 +225,17 @@ The pipeline:
 First launch of the unsigned app may require right-clicking the app and choosing Open. In desktop mode, the Electron wrapper sets:
 
 ```text
-VIVA_DB_PATH=<Electron userData>/viva.sqlite
+VIVA_DB_PATH=<Electron userData>/d-viva-assistant-agent.sqlite
 RECORDINGS_DIR=<Electron userData>/recordings
 ```
 
 On macOS this is normally under:
 
 ```text
-~/Library/Application Support/Viva Assistant/
+~/Library/Application Support/D-viva-assistant-agent/
 ```
+
+Existing local data from the previous project identity is not migrated automatically. To preserve old data, manually copy or rename `./data/viva.sqlite` to `./data/d-viva-assistant-agent.sqlite`, or copy `~/Library/Application Support/Viva Assistant/viva.sqlite` into `~/Library/Application Support/D-viva-assistant-agent/d-viva-assistant-agent.sqlite`.
 
 Do not commit `dist-electron/`, generated `.next/`, local databases, recordings, or environment files.
 
@@ -266,7 +278,7 @@ Judge and examiner logic must use bound evidence, not model prior knowledge.
 
 - `AGENTS.md`: cold-start contract and non-negotiable project guardrails.
 - `docs/PROJECT_STATUS.md`: concise implementation snapshot and remaining limitations.
-- `docs/superpowers/specs/2026-06-23-viva-assistant-generic-design.md`: product and architecture spec.
+- `docs/superpowers/specs/2026-06-23-D-viva-assistant-agent-generic-design.md`: product and architecture spec.
 - `docs/superpowers/plans/*.md`: implementation plans and feature gates by milestone.
 
 When changing code that affects the data model, environment contract, AI/STT behavior, or evidence guarantees, update the relevant spec/plan/readme documentation in the same change.

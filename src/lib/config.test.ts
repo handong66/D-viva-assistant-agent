@@ -22,10 +22,10 @@ describe("loadConfig", () => {
     expect(c.effectiveAiEnabled).toBe(false);
   });
 
-  it("defaults sttProvider to off and dbPath to ./data/viva.sqlite", () => {
+  it("defaults sttProvider to off and dbPath to ./data/d-viva-assistant-agent.sqlite", () => {
     const c = loadConfig({});
     expect(c.sttProvider).toBe("off");
-    expect(c.dbPath).toBe("./data/viva.sqlite");
+    expect(c.dbPath).toBe("./data/d-viva-assistant-agent.sqlite");
   });
 
   it("does NOT enable AI when only GOOGLE_VERTEX_PROJECT is set (project id is not a credential)", () => {

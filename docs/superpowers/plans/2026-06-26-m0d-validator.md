@@ -8,7 +8,7 @@
 
 **Tech Stack:** TypeScript (strict) · better-sqlite3 · vitest. Builds on M0b schema (`prep_item`, `prep_item_evidence`, `evidence_unit`) and the field set: `type`, `claim_text`, `evidence_quote`, `value_numeric`, `unit`, `support_kind`, `validation_status`, `validator_version`.
 
-**Spec:** `docs/superpowers/specs/2026-06-23-viva-assistant-generic-design.md` §6 (落库前校验器, validator levels), §10 (prep-pack), §11 (judge/examiner evidence binding).
+**Spec:** `docs/superpowers/specs/2026-06-23-D-viva-assistant-agent-generic-design.md` §6 (落库前校验器, validator levels), §10 (prep-pack), §11 (judge/examiner evidence binding).
 
 **Scope:** pure leveled validator (L1–L3) + result model + repository fetch/persist. **Out of scope:** L4 LLM advisory (→ M2), prep-pack generation (→ M2), ingest (→ M1), examiner/judge (→ M3), UI.
 

@@ -179,18 +179,18 @@ export function getActiveThesis(db: DB): ActiveThesis | undefined {
 import { describe, it, expect, afterEach } from "vitest";
 import { getDb } from "./client";
 
-const g = globalThis as unknown as { __vivaDb?: import("better-sqlite3").Database };
-afterEach(() => { g.__vivaDb?.close?.(); delete g.__vivaDb; });
+const g = globalThis as unknown as { __dVivaAssistantAgentDb?: import("better-sqlite3").Database };
+afterEach(() => { g.__dVivaAssistantAgentDb?.close?.(); delete g.__dVivaAssistantAgentDb; });
 
 describe("getDb", () => {
   it("runs migrations on first creation (schema is queryable, not 'no such table')", () => {
-    delete g.__vivaDb;
+    delete g.__dVivaAssistantAgentDb;
     const db = getDb(":memory:");
     expect(() => db.prepare("SELECT count(*) FROM thesis").get()).not.toThrow();
     expect(() => db.prepare("SELECT count(*) FROM prep_item").get()).not.toThrow();
   });
   it("returns the same singleton on repeated calls", () => {
-    delete g.__vivaDb;
+    delete g.__dVivaAssistantAgentDb;
     expect(getDb(":memory:")).toBe(getDb(":memory:"));
   });
 });
@@ -214,15 +214,15 @@ export function createDb(path: string): DB {
 }
 
 // HMR-safe singleton: reuse the connection across dev reloads.
-const g = globalThis as unknown as { __vivaDb?: DB };
+const g = globalThis as unknown as { __dVivaAssistantAgentDb?: DB };
 
 export function getDb(path: string): DB {
-  if (!g.__vivaDb) {
+  if (!g.__dVivaAssistantAgentDb) {
     const db = createDb(path);
     runMigrations(db); // idempotent (schema_migrations); the singleton's first opener migrates
-    g.__vivaDb = db;
+    g.__dVivaAssistantAgentDb = db;
   }
-  return g.__vivaDb;
+  return g.__dVivaAssistantAgentDb;
 }
 ```
 
@@ -393,7 +393,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import "./globals.css";
 
-export const metadata: Metadata = { title: "Viva Assistant", description: "Thesis defence prep" };
+export const metadata: Metadata = { title: "D-viva-assistant-agent", description: "Thesis defence prep" };
 
 const NAV = [
   { href: "/", label: "Today" },
@@ -406,7 +406,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="min-h-screen bg-zinc-50 text-zinc-900 antialiased dark:bg-zinc-950 dark:text-zinc-100">
         <div className="mx-auto flex min-h-screen max-w-5xl flex-col">
           <header className="flex items-center gap-6 border-b border-zinc-200 px-6 py-4 dark:border-zinc-800">
-            <span className="text-lg font-semibold">Viva Assistant</span>
+            <span className="text-lg font-semibold">D-viva-assistant-agent</span>
             <nav className="flex gap-4 text-sm">
               {NAV.map((n) => (
                 <Link key={n.href} href={n.href} className="text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100">

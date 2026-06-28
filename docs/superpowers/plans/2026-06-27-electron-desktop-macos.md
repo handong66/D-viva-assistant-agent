@@ -2,7 +2,7 @@
 
 > **Workflow:** build-pipeline task. After this (design-reviewed) plan, **Claude writes the wrapper AND runs/debugs the pipeline in stages** (Codex can't run npm/electron-builder/native rebuilds). Final "double-click opens a window" is a human check (GUI). **Revised after design round 1** (2 P0 + 2 P1 fixes baked in).
 
-**Goal:** a **double-clickable, unsigned macOS `.app`** that launches viva-assistant (starts the Next server internally, opens a window); DB + recordings live in the macOS app-data dir. Local use only, macOS only.
+**Goal:** a **double-clickable, unsigned macOS `.app`** that launches D-viva-assistant-agent (starts the Next server internally, opens a window); DB + recordings live in the macOS app-data dir. Local use only, macOS only.
 
 **Design (round-1 corrected):**
 - Next `output: "standalone"` is **gated behind `BUILD_STANDALONE=1`** (so normal `npm run build`/`start`/`dev` + all 219 tests are unaffected — `next start` does NOT support standalone).
@@ -44,11 +44,11 @@ async function main() {
   const userData = app.getPath("userData");
   serverProc = spawn(process.execPath, [serverEntry()], {
     env: { ...process.env, ELECTRON_RUN_AS_NODE: "1", NODE_ENV: "production", PORT: String(port), HOSTNAME: "127.0.0.1",
-      VIVA_DB_PATH: path.join(userData, "viva.sqlite"), RECORDINGS_DIR: path.join(userData, "recordings") },
+      VIVA_DB_PATH: path.join(userData, "d-viva-assistant-agent.sqlite"), RECORDINGS_DIR: path.join(userData, "recordings") },
     stdio: "inherit",
   });
   await waitPort(port);
-  const win = new BrowserWindow({ width: 1280, height: 860, title: "Viva Assistant" });
+  const win = new BrowserWindow({ width: 1280, height: 860, title: "D-viva-assistant-agent" });
   await win.loadURL(`http://127.0.0.1:${port}`);
 }
 const stop = () => { if (serverProc && !serverProc.killed) serverProc.kill(); };
@@ -60,8 +60,8 @@ app.on("window-all-closed", () => { stop(); if (process.platform !== "darwin") a
 - [ ] **package.json** — add `"main": "electron/main.cjs"`; devDeps `electron`, `electron-builder`, `@electron/rebuild`; script `"electron:pack": "node scripts/pack-electron.mjs"`; and the build config (standalone via `extraResources`, NOT asarUnpack):
 ```jsonc
 "build": {
-  "appId": "com.viva.assistant",
-  "productName": "Viva Assistant",
+  "appId": "com.handong66.dvivaassistantagent",
+  "productName": "D-viva-assistant-agent",
   "files": ["electron/**", "package.json"],
   "extraResources": [{ "from": ".next/standalone", "to": "standalone" }],
   "mac": { "target": "dir", "identity": null },
@@ -96,8 +96,8 @@ console.log("done → dist-electron/");
 
 - [ ] **Claude runs it in stages, smoking BEFORE the Electron rebuild:**
   1. **Stage A:** `BUILD_STANDALONE=1 npm run build`, then copy static/public, then **Node-smoke** the standalone under Node 25 (its better-sqlite3 still matches): `PORT=4123 VIVA_DB_PATH=/tmp/v.sqlite RECORDINGS_DIR=/tmp/vrec node .next/standalone/server.js &`; `curl -sf localhost:4123/` returns the home HTML **and** `curl -sf -o /dev/null -w '%{http_code}' localhost:4123/_next/static/...` a real static asset returns 200 (proves standalone + DB + migrations + assets work). Kill it.
-  2. **Stage B:** `npx @electron/rebuild -f -w better-sqlite3` → copy into standalone → `npx electron-builder --mac --dir` → confirm `dist-electron/mac*/Viva Assistant.app` exists → `npm rebuild better-sqlite3` (restore) → `npm test` still green (proves the root tree is restored).
-  - **Human:** double-click `dist-electron/mac*/Viva Assistant.app` (first time: right-click → Open, unsigned) → a window opens with the app; data appears under `~/Library/Application Support/Viva Assistant/`.
+  2. **Stage B:** `npx @electron/rebuild -f -w better-sqlite3` → copy into standalone → `npx electron-builder --mac --dir` → confirm `dist-electron/mac*/D-viva-assistant-agent.app` exists → `npm rebuild better-sqlite3` (restore) → `npm test` still green (proves the root tree is restored).
+  - **Human:** double-click `dist-electron/mac*/D-viva-assistant-agent.app` (first time: right-click → Open, unsigned) → a window opens with the app; data appears under `~/Library/Application Support/D-viva-assistant-agent/`.
 
 - [ ] **Commit** the wrapper (`next.config.ts`, `electron/`, `scripts/`, `package.json`, `.gitignore`) — `git commit -m "feat(desktop): macOS Electron wrapper (gated standalone + extraResources + better-sqlite3 ABI rebuild)"`. (Do not commit `dist-electron/`.)
 

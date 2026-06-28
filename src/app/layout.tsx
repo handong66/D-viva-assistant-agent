@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Viva Assistant",
+  title: "D-viva-assistant-agent",
   description: "Thesis defence prep",
 };
 
@@ -41,7 +41,7 @@ export default function RootLayout({
       <body className="min-h-full bg-zinc-50 text-zinc-950 dark:bg-zinc-950 dark:text-zinc-50">
         <div className="mx-auto flex min-h-screen max-w-5xl flex-col">
           <header className="flex items-center gap-6 border-b border-zinc-200 px-6 py-4 dark:border-zinc-800">
-            <h1 className="text-lg font-semibold">Viva Assistant</h1>
+            <h1 className="text-lg font-semibold">D-viva-assistant-agent</h1>
             <nav className="flex gap-4 text-sm">
               {navItems.map((item) => (
                 <Link

@@ -1,5 +1,5 @@
 {
-  "name": "viva-assistant",
+  "name": "d-viva-assistant-agent",
   "version": "0.1.0",
   "private": true,
   "main": "electron/main.cjs",
@@ -14,8 +14,8 @@
     "electron:pack": "node scripts/pack-electron.mjs"
   },
   "build": {
-    "appId": "com.viva.assistant",
-    "productName": "Viva Assistant",
+    "appId": "com.handong66.dvivaassistantagent",
+    "productName": "D-viva-assistant-agent",
     "files": [
       "electron/**",
       "package.json"
