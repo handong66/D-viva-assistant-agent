@@ -50,6 +50,7 @@ data/
 *.sqlite-wal
 recordings/
 coverage/
+dist-electron/
 
 # allow the committed env template
 !.env.example
