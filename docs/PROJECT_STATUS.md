@@ -11,6 +11,7 @@ Last verified from the local repository on 2026-06-28.
 - Default web/dev database: `./data/d-viva-assistant-agent.sqlite`
 - Default Electron database: `<Electron userData>/d-viva-assistant-agent.sqlite`
 - macOS Electron data directory: `~/Library/Application Support/D-viva-assistant-agent/`
+- `VIVA_*` environment variable names remain stable for compatibility; only their default values changed where they encode the project identity.
 
 ## Implemented
 
@@ -40,6 +41,7 @@ Last verified from the local repository on 2026-06-28.
 - Electron packaging is macOS-focused and unsigned.
 - The design spec still contains some forward-looking implementation notes; use code plus README for the current runtime snapshot.
 - Existing local data from the prior project identity is not migrated automatically; preserve it by manually copying or renaming the old SQLite file into the new default path.
+- Existing untracked `.env.local` files that pin `VIVA_DB_PATH=./data/viva.sqlite` continue to use that old path until manually updated.
 
 ## Verification Commands
 

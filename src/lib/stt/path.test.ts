@@ -28,7 +28,7 @@ describe("recordingsRoot", () => {
     expect(recordingsRoot()).toBe(fallback);
   });
   it("resolves an explicit RECORDINGS_DIR to an absolute path", () => {
-    process.env.RECORDINGS_DIR = "/tmp/viva-recordings";
-    expect(recordingsRoot()).toBe(resolve("/tmp/viva-recordings"));
+    process.env.RECORDINGS_DIR = "/tmp/d-viva-assistant-agent-recordings";
+    expect(recordingsRoot()).toBe(resolve("/tmp/d-viva-assistant-agent-recordings"));
   });
 });

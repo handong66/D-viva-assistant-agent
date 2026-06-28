@@ -151,6 +151,8 @@ RUN_LIVE_AI=
 VIVA_DB_PATH=./data/d-viva-assistant-agent.sqlite
 ```
 
+The `VIVA_*` environment variable names are intentionally retained for compatibility and because `viva` is also the thesis-defence domain term. The project identity changed to `D-viva-assistant-agent`; the current default values, package name, Electron product name, appId, and database filename use the new identity.
+
 AI is effectively usable only when:
 
 ```text
@@ -235,7 +237,7 @@ On macOS this is normally under:
 ~/Library/Application Support/D-viva-assistant-agent/
 ```
 
-Existing local data from the previous project identity is not migrated automatically. To preserve old data, manually copy or rename `./data/viva.sqlite` to `./data/d-viva-assistant-agent.sqlite`, or copy `~/Library/Application Support/Viva Assistant/viva.sqlite` into `~/Library/Application Support/D-viva-assistant-agent/d-viva-assistant-agent.sqlite`.
+Existing local data from the previous project identity is not migrated automatically. To preserve old data, manually copy or rename `./data/viva.sqlite` to `./data/d-viva-assistant-agent.sqlite`, or copy `~/Library/Application Support/Viva Assistant/viva.sqlite` into `~/Library/Application Support/D-viva-assistant-agent/d-viva-assistant-agent.sqlite`. If an existing `.env.local` explicitly sets `VIVA_DB_PATH=./data/viva.sqlite`, update that value or it will keep using the old development database path.
 
 Do not commit `dist-electron/`, generated `.next/`, local databases, recordings, or environment files.
 

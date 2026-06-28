@@ -23,6 +23,9 @@
 - DB schema (`src/db/migrations/*.ts`，嵌入式 TS 迁移；无 `db/schema.ts`) ↔ spec §6 数据模型。
 - env 契约 (`.env.example`) ↔ spec §14。
 
+## Naming Policy
+- `VIVA_*` env var names are intentionally stable for compatibility and because `viva` is domain language; do not rename them without a separate compatibility migration plan.
+
 ## Canonical commands
 - `npm run dev` · `npm test`(vitest) · `npm run typecheck`(tsc) · `npm run lint` · `npm run build`
 

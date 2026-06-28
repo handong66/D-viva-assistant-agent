@@ -224,6 +224,8 @@ VIVA_DB_PATH=./data/d-viva-assistant-agent.sqlite
 ```
 启动时做 config 校验（缺失/冲突给清晰报错）；日志对密钥脱敏（P1-12）。**当前有效启用 = `VIVA_AI_ENABLED=true` 且解析到 provider key 且 `AI_GATEWAY_API_KEY` 存在**；否则返回 disabled client。`RECORDINGS_DIR` 由 `src/lib/stt/path.ts` 直接解析，空值回退到 `./recordings`。
 
+`VIVA_*` 环境变量名在项目改名后仍刻意保留：一是兼容既有 `.env.local`，二是 `viva` 也是论文答辩领域词；若未来要改为新前缀，必须另做兼容迁移计划。
+
 ---
 
 ## 15. 测试策略
