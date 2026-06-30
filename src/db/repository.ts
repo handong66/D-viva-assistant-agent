@@ -482,15 +482,23 @@ export function getLatestPracticeRun(db: DB, thesisId: string): PracticeRunView 
 
 export type ReviewItemView = { id: string; dimension: string; score: number; reason: string | null; question: string; practiceRunId: string };
 
-export function getReviewItems(db: DB, thesisId: string): ReviewItemView[] {
+export function getReviewItems(db: DB, thesisId: string, limit?: number): ReviewItemView[] {
+  const boundedLimit = typeof limit === "number" && Number.isInteger(limit) && limit > 0 ? Math.floor(limit) : null;
   const rows = db
     .prepare(
       `SELECT ri.id, ri.dimension, ri.score, ri.reason, ri.practice_run_id, pr.question
          FROM review_item ri JOIN practice_run pr ON pr.id = ri.practice_run_id AND pr.thesis_id = ri.thesis_id
         WHERE ri.thesis_id = ? AND ri.status = 'open' AND ri.score <= 2
-        ORDER BY ri.score ASC, ri.created_at DESC, ri.id`,
+        ORDER BY ri.score ASC, ri.created_at DESC, ri.id${boundedLimit ? " LIMIT ?" : ""}`,
     )
-    .all(thesisId) as { id: string; dimension: string; score: number; reason: string | null; practice_run_id: string; question: string }[];
+    .all(...(boundedLimit ? [thesisId, boundedLimit] : [thesisId])) as {
+    id: string;
+    dimension: string;
+    score: number;
+    reason: string | null;
+    practice_run_id: string;
+    question: string;
+  }[];
   return rows.map((r) => ({ id: r.id, dimension: r.dimension, score: r.score, reason: r.reason, question: r.question, practiceRunId: r.practice_run_id }));
 }
 

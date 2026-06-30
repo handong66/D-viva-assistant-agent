@@ -6,6 +6,8 @@ Repository: `handong66/D-viva-assistant-agent`
 
 Last verified from the local repository on 2026-06-30.
 
+Languages: English | [简体中文](README.zh-CN.md)
+
 ## Why This Exists
 
 Viva preparation is high-stakes and usually scattered across notes, prompts, transcripts, and examiner guesses. D-viva-assistant-agent keeps the workflow in one local app:
@@ -18,43 +20,43 @@ Viva preparation is high-stakes and usually scattered across notes, prompts, tra
 
 ## Screenshots
 
-The screenshots below were captured from the actual app running locally with a synthetic demo thesis. They do not contain private user data.
+The English screenshots below were captured from the actual app running locally with `DVA_UI_LOCALE=en` and a synthetic demo thesis. They do not contain private user data.
 
 ### Daily Dashboard
 
 The home page shows the active thesis, recommended next action, today's plan, and current prep/practice/review counters.
 
-![Dashboard showing an active demo thesis, today's plan, and review counters](docs/assets/screenshots/dashboard.png)
+![Dashboard showing an active demo thesis, today's plan, and review counters](docs/assets/screenshots/en/dashboard.png)
 
 ### Evidence-Aware Materials
 
 Prep items carry status badges such as `verified`, `needs review`, and `draft`. Verified key facts show the grounding basis used by the deterministic validator.
 
-![Materials page showing verified and needs-review prep cards](docs/assets/screenshots/materials.png)
+![Materials page showing verified and needs-review prep cards](docs/assets/screenshots/en/materials.png)
 
 ### AI Examiner Practice And Judge Output
 
 Practice runs show the examiner question, answer, five-dimension scores, weak-dimension reasons, diagnosis, suggested rewrite, and follow-up questions.
 
-![Practice page showing a hostile question, answer scores, diagnosis, rewrite, and follow-ups](docs/assets/screenshots/practice.png)
+![Practice page showing a hostile question, answer scores, diagnosis, rewrite, and follow-ups](docs/assets/screenshots/en/practice.png)
 
 ### Review Queue
 
 Scores of 2 or below are saved into an open review queue so revision effort is focused on concrete weaknesses.
 
-![Review queue showing weak dimensions and reasons](docs/assets/screenshots/review.png)
+![Review queue showing weak dimensions and reasons](docs/assets/screenshots/en/review.png)
 
 ### Training Plan
 
 The app can save a local static plan when AI is off, or an AI-generated plan when configured. The dashboard uses the active plan for daily guidance.
 
-![Training plan page showing a seven-day viva plan](docs/assets/screenshots/plan.png)
+![Training plan page showing a seven-day viva plan](docs/assets/screenshots/en/plan.png)
 
 ### Library, Privacy, And Accuracy
 
 The library page shows thesis switching, AI/STT disclosure text, and content-accuracy counters.
 
-![Library page showing active thesis metadata, privacy disclosure, and accuracy stats](docs/assets/screenshots/library.png)
+![Library page showing active thesis metadata, privacy disclosure, and accuracy stats](docs/assets/screenshots/en/library.png)
 
 ## Current Project Identity
 
@@ -193,6 +195,9 @@ GOOGLE_STT_API_KEY=
 # Read by src/lib/stt/path.ts; defaults to ./recordings when blank.
 RECORDINGS_DIR=
 
+# UI
+DVA_UI_LOCALE=en
+
 # Set RUN_LIVE_AI=1 only for explicit live-provider smoke tests.
 RUN_LIVE_AI=
 
@@ -207,6 +212,8 @@ VIVA_AI_ENABLED=true
 VIVA_MODEL_DEFAULT, VIVA_MODEL_HARD, and VIVA_MODEL_FAST are set to AI Gateway provider/model IDs
 AI_GATEWAY_API_KEY is present
 ```
+
+`DVA_UI_LOCALE` controls the rendered UI language. Use `en` for English or `zh-CN` for Simplified Chinese. README screenshots are captured in matching language-specific modes.
 
 `AI_GATEWAY_API_KEY` currently does double duty: it is required before the app creates an LLM client, and it also satisfies the provider-key check in config. `GOOGLE_VERTEX_PROJECT` is parsed for future/provider compatibility, but a project id alone does not enable Vertex; the current config only counts `GOOGLE_APPLICATION_CREDENTIALS` as the Vertex provider credential.
 
@@ -302,6 +309,7 @@ src/app/review/             Low-score review queue
 src/app/library/            Thesis switching, privacy disclosure, accuracy stats
 src/db/                     SQLite client, migrations, repository functions, tests
 src/lib/config.ts           Environment parsing and effective feature flags
+src/lib/ui-copy.ts          English and Simplified Chinese UI copy
 src/lib/ingest/             PDF/Markdown/text extraction and chunking
 src/lib/evidence/           Deterministic prep-item validator
 src/lib/llm/                Model registry, client, transport, prompts, mock client
@@ -309,7 +317,8 @@ src/lib/stt/                STT mode resolution, Google transport, recording pat
 src/lib/plan.ts             Static plan helpers and day calculations
 electron/main.cjs           Electron wrapper that starts the packaged Next server
 scripts/pack-electron.mjs   macOS packaging pipeline
-docs/assets/screenshots/    README screenshots captured from a synthetic demo thesis
+docs/assets/screenshots/en/ README screenshots captured from an English synthetic demo thesis
+docs/assets/screenshots/zh-CN/ README screenshots captured from a Chinese synthetic demo thesis
 docs/superpowers/specs/     Product and architecture spec
 docs/superpowers/plans/     Milestone and feature implementation plans
 ```
@@ -350,7 +359,7 @@ When changing code that affects the data model, environment contract, AI/STT beh
 - Google Cloud STT uses synchronous `speech:recognize`, so long recordings should use browser speech recognition instead.
 - PDF extraction quality depends on the source PDF. For poor PDFs, paste Markdown or plain text.
 - The Electron build is unsigned and macOS-focused.
-- There is no committed sample thesis fixture; README screenshots use a synthetic local demo database generated during documentation work.
+- There is no committed sample thesis fixture; README screenshots use synthetic local demo databases generated during documentation work.
 
 ## Contributing Discipline
 

@@ -2,57 +2,59 @@
 
 import { useActionState, useState } from "react";
 import { importThesisAction, type ImportState } from "../_actions/thesis";
+import { getUiCopy, type UiLocale } from "../../lib/ui-copy";
 
 const initialState: ImportState = { error: null };
 
-export function ImportForm() {
+export function ImportForm({ locale }: { locale: UiLocale }) {
   const [state, action, isPending] = useActionState(importThesisAction, initialState);
   const [sourceKind, setSourceKind] = useState("md");
+  const t = getUiCopy(locale).importPage;
 
   return (
-    <form action={action} className="flex max-w-2xl flex-col gap-4">
+    <form action={action} className="panel panel-pad flex max-w-2xl flex-col gap-4">
       <label className="flex flex-col gap-1">
-        <span className="text-sm font-medium">Title</span>
+        <span className="text-sm font-medium">{t.titleField}</span>
         <input
           name="title"
           required
-          className="rounded-md border border-zinc-300 bg-white px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
+          className="field"
         />
       </label>
 
       <label className="flex flex-col gap-1">
-        <span className="text-sm font-medium">Source</span>
+        <span className="text-sm font-medium">{t.source}</span>
         <select
           name="sourceKind"
           value={sourceKind}
           onChange={(event) => setSourceKind(event.target.value)}
-          className="rounded-md border border-zinc-300 bg-white px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
+          className="field"
         >
-          <option value="md">Markdown</option>
-          <option value="txt">Plain text</option>
-          <option value="pdf">PDF</option>
+          <option value="md">{t.markdown}</option>
+          <option value="txt">{t.plainText}</option>
+          <option value="pdf">{t.pdf}</option>
         </select>
       </label>
 
       {sourceKind === "pdf" ? (
         <label className="flex flex-col gap-1">
-          <span className="text-sm font-medium">PDF file</span>
+          <span className="text-sm font-medium">{t.pdfFile}</span>
           <input
             type="file"
             name="file"
             accept="application/pdf"
             required
-            className="text-sm file:mr-3 file:rounded-md file:border-0 file:bg-zinc-950 file:px-3 file:py-2 file:text-sm file:font-medium file:text-white dark:file:bg-zinc-50 dark:file:text-zinc-950"
+            className="text-sm file:mr-3 file:rounded-md file:border-0 file:bg-[#004f43] file:px-3 file:py-2 file:text-sm file:font-semibold file:text-white"
           />
         </label>
       ) : (
         <label className="flex flex-col gap-1">
-          <span className="text-sm font-medium">Content</span>
+          <span className="text-sm font-medium">{t.content}</span>
           <textarea
             name="content"
             rows={12}
             required
-            className="rounded-md border border-zinc-300 bg-white px-3 py-2 font-mono text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            className="field font-mono"
           />
         </label>
       )}
@@ -66,9 +68,9 @@ export function ImportForm() {
       <button
         type="submit"
         disabled={isPending}
-        className="self-start rounded-md bg-zinc-950 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-50 dark:bg-zinc-50 dark:text-zinc-950 dark:hover:bg-zinc-200"
+        className="btn-primary self-start disabled:opacity-50"
       >
-        {isPending ? "Importing..." : "Import"}
+        {isPending ? t.submitting : t.submit}
       </button>
     </form>
   );

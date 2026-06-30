@@ -28,6 +28,7 @@ const baseConfig: Config = {
   sttConfigured: false,
   dbPath: ":memory:",
   runLiveAi: false,
+  uiLocale: "en",
 };
 
 describe("getSttTransport", () => {

@@ -3,6 +3,7 @@ import { useActionState, useEffect, useRef, useState } from "react";
 import { submitAnswerAction } from "../_actions/practice";
 import { transcribeAnswerAction } from "../_actions/recording";
 import type { SttUiMode } from "../../lib/stt/mode";
+import { getUiCopy, type UiLocale } from "../../lib/ui-copy";
 
 const MAX_CLIENT_BYTES = 10 * 1024 * 1024;
 const OPUS_MIMES = ["audio/webm;codecs=opus", "audio/ogg;codecs=opus"];
@@ -20,7 +21,8 @@ type SpeechRecognitionLike = {
 };
 type SpeechRecognitionCtor = new () => SpeechRecognitionLike;
 
-export function AnswerForm({ runId, sttMode }: { runId: string; sttMode: SttUiMode }) {
+export function AnswerForm({ runId, sttMode, locale }: { runId: string; sttMode: SttUiMode; locale: UiLocale }) {
+  const t = getUiCopy(locale).practice;
   const [state, action, pending] = useActionState(submitAnswerAction, { error: null });
   const [answer, setAnswer] = useState("");
   const [recording, setRecording] = useState(false);
@@ -47,7 +49,7 @@ export function AnswerForm({ runId, sttMode }: { runId: string; sttMode: SttUiMo
   async function startCloud() {
     setRecError(null);
     const mime = OPUS_MIMES.find((t) => typeof MediaRecorder !== "undefined" && MediaRecorder.isTypeSupported(t));
-    if (!mime) { setRecError("Recording is not supported in this browser — type your answer instead."); return; }
+    if (!mime) { setRecError(t.recordUnsupported); return; }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
@@ -58,8 +60,8 @@ export function AnswerForm({ runId, sttMode }: { runId: string; sttMode: SttUiMo
         stream.getTracks().forEach((t) => t.stop());
         streamRef.current = null;
         const blob = new Blob(chunksRef.current, { type: recorder.mimeType });
-        if (blob.size === 0) { setRecError("No audio was captured."); return; }
-        if (blob.size > MAX_CLIENT_BYTES) { setRecError("Recording is too long — keep it under ~10 MB."); return; }
+        if (blob.size === 0) { setRecError(t.noAudio); return; }
+        if (blob.size > MAX_CLIENT_BYTES) { setRecError(t.tooLong); return; }
         setBusy(true);
         try {
           const fd = new FormData();
@@ -69,7 +71,7 @@ export function AnswerForm({ runId, sttMode }: { runId: string; sttMode: SttUiMo
           if (res.error) setRecError(res.error);
           else if (res.transcript) setAnswer((prev) => (prev ? prev + " " : "") + res.transcript);
         } catch {
-          setRecError("Could not transcribe the recording. Please try again.");
+          setRecError(t.transcribeFail);
         } finally {
           setBusy(false);
         }
@@ -78,7 +80,7 @@ export function AnswerForm({ runId, sttMode }: { runId: string; sttMode: SttUiMo
       recorderRef.current = recorder;
       setRecording(true);
     } catch {
-      setRecError("Could not access the microphone.");
+      setRecError(t.micFail);
     }
   }
   function stopCloud() { recorderRef.current?.stop(); setRecording(false); }
@@ -87,7 +89,7 @@ export function AnswerForm({ runId, sttMode }: { runId: string; sttMode: SttUiMo
     setRecError(null);
     const Ctor = (window as unknown as { SpeechRecognition?: SpeechRecognitionCtor; webkitSpeechRecognition?: SpeechRecognitionCtor });
     const SR = Ctor.SpeechRecognition ?? Ctor.webkitSpeechRecognition;
-    if (!SR) { setRecError("Speech recognition isn't supported in this browser — type your answer instead."); return; }
+    if (!SR) { setRecError(t.speechUnsupported); return; }
     const rec = new SR();
     rec.lang = "en-US";
     rec.interimResults = true;
@@ -104,11 +106,11 @@ export function AnswerForm({ runId, sttMode }: { runId: string; sttMode: SttUiMo
       }
       setAnswer(baseRef.current + finalRef.current + interim);
     };
-    rec.onerror = (ev) => { if (recognitionRef.current !== rec) return; setRecError(`Speech recognition error${ev.error ? `: ${ev.error}` : ""}.`); setRecording(false); };
+    rec.onerror = (ev) => { if (recognitionRef.current !== rec) return; setRecError(t.speechError(ev.error)); setRecording(false); };
     rec.onend = () => { if (recognitionRef.current !== rec) return; setRecording(false); recognitionRef.current = null; };
     recognitionRef.current = rec;                  // set before start so callbacks see the current recognizer
     try { rec.start(); setRecording(true); }
-    catch { recognitionRef.current = null; setRecError("Could not start speech recognition."); }
+    catch { recognitionRef.current = null; setRecError(t.speechStartFail); }
   }
   function stopBrowser() { recognitionRef.current?.stop(); setRecording(false); }
 
@@ -121,10 +123,10 @@ export function AnswerForm({ runId, sttMode }: { runId: string; sttMode: SttUiMo
 
       {sttMode !== "off" ? (
         <div className="flex items-center gap-3">
-          <button type="button" onClick={recording ? stop : start} disabled={busy} className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium hover:bg-zinc-50 disabled:opacity-50 dark:border-zinc-700 dark:hover:bg-zinc-800">
-            {recording ? "■ Stop" : busy ? "Transcribing…" : "🎤 Record answer"}
+          <button type="button" onClick={recording ? stop : start} disabled={busy} className="btn-secondary min-h-0 px-3 py-1.5 disabled:opacity-50">
+            {recording ? t.stop : busy ? t.transcribing : t.record}
           </button>
-          {recError ? <span className="text-sm text-red-600 dark:text-red-400">{recError}</span> : null}
+          {recError ? <span className="text-sm text-[#c0263d]">{recError}</span> : null}
         </div>
       ) : null}
 
@@ -134,13 +136,13 @@ export function AnswerForm({ runId, sttMode }: { runId: string; sttMode: SttUiMo
         onChange={(e) => setAnswer(e.target.value)}
         rows={8}
         required
-        placeholder={sttMode !== "off" ? "Type your answer — or record above and edit the transcript…" : "Type your answer…"}
-        className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+        placeholder={sttMode !== "off" ? t.answerPlaceholderStt : t.answerPlaceholder}
+        className="field"
       />
-      <button type="submit" disabled={pending} className="self-start rounded-md bg-zinc-950 px-4 py-2 text-sm font-medium text-white disabled:opacity-50 dark:bg-zinc-50 dark:text-zinc-950">
-        {pending ? "Scoring…" : "Submit answer"}
+      <button type="submit" disabled={pending} className="btn-primary self-start disabled:opacity-50">
+        {pending ? t.scoring : t.submit}
       </button>
-      {state.error ? <p className="text-sm text-red-600 dark:text-red-400">{state.error}</p> : null}
+      {state.error ? <p className="text-sm text-[#c0263d]">{state.error}</p> : null}
     </form>
   );
 }

@@ -13,6 +13,12 @@ describe("recommendNextAction", () => {
     expect(recommendNextAction({ prepTotal: 5, practiceRuns: 2, openReviews: 1 }, true)).toEqual({ label: "Review 1 weak spot", href: "/review" });
     expect(recommendNextAction({ prepTotal: 5, practiceRuns: 2, openReviews: 3 }, true)).toEqual({ label: "Review 3 weak spots", href: "/review" });
   });
+  it("localizes recommendation labels for Chinese UI screenshots", () => {
+    expect(recommendNextAction({ prepTotal: 5, practiceRuns: 2, openReviews: 3 }, true, "zh-CN")).toEqual({
+      label: "复盘 3 个薄弱点",
+      href: "/review",
+    });
+  });
   it("all caught up → practise more", () => {
     expect(recommendNextAction({ prepTotal: 5, practiceRuns: 2, openReviews: 0 }, true)).toEqual({ label: "Practise another question", href: "/practice" });
   });

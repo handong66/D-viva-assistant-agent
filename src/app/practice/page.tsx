@@ -2,6 +2,7 @@ import Link from "next/link";
 import { appContext } from "../../lib/server/context";
 import { sttUiMode } from "../../lib/stt/mode";
 import { getActiveThesis, getLatestPracticeRun, getRunReviewItems } from "../../db/repository";
+import { getUiCopy, labelFromMap } from "../../lib/ui-copy";
 import { StartForm } from "./start-form";
 import { AnswerForm } from "./answer-form";
 
@@ -12,13 +13,14 @@ const DIMS = ["evidence", "clarity", "completeness", "boundary", "delivery"] as 
 
 export default async function PracticePage() {
   const { db, config } = await appContext();
+  const t = getUiCopy(config.uiLocale);
   const thesis = getActiveThesis(db);
   if (!thesis) {
     return (
-      <section className="flex flex-col items-start gap-4">
-        <h1 className="text-2xl font-semibold">Practice</h1>
-        <p className="text-zinc-600 dark:text-zinc-400">Import a thesis first.</p>
-        <Link href="/import" className="rounded-md bg-zinc-950 px-4 py-2 text-sm font-medium text-white dark:bg-zinc-50 dark:text-zinc-950">Import a thesis</Link>
+      <section className="panel panel-pad flex max-w-2xl flex-col items-start gap-4">
+        <h1 className="page-title">{t.practice.title}</h1>
+        <p className="muted">{t.common.importFirst}</p>
+        <Link href="/import" className="btn-primary">{t.common.importThesis}</Link>
       </section>
     );
   }
@@ -28,56 +30,58 @@ export default async function PracticePage() {
   return (
     <section className="flex flex-col gap-6">
       <div className="flex flex-col gap-3">
-        <h1 className="text-2xl font-semibold">Practice</h1>
-        <StartForm />
+        <h1 className="page-title">{t.practice.title}</h1>
+        <StartForm locale={config.uiLocale} />
       </div>
 
       {!run ? (
-        <p className="text-zinc-600 dark:text-zinc-400">Generate a question to begin.</p>
+        <p className="panel panel-pad muted">{t.practice.begin}</p>
       ) : (
-        <article className="flex flex-col gap-5 rounded-lg border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
+        <article className="panel panel-pad flex flex-col gap-5">
           <div>
-            <span className="text-xs font-medium uppercase tracking-wide text-zinc-500">{run.questionKind.replace("_", " ")} question</span>
-            <p className="mt-1 font-medium">{run.question}</p>
+            <span className="section-kicker">
+              {t.practice.question(labelFromMap(t.labels.questionKinds, run.questionKind))}
+            </span>
+            <p className="mt-2 text-lg font-semibold">{run.question}</p>
           </div>
 
           {!run.scores ? (
-            <AnswerForm runId={run.id} sttMode={sttMode} />
+            <AnswerForm runId={run.id} sttMode={sttMode} locale={config.uiLocale} />
           ) : (() => {
             const weak = getRunReviewItems(db, run.id);
             return (
             <div className="flex flex-col gap-4">
               {run.answerText ? (
                 <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                  <span className="font-medium text-zinc-900 dark:text-zinc-100">Your answer:</span> {run.answerText}
+                  <span className="font-semibold text-[#17211d]">{t.practice.yourAnswer}</span> {run.answerText}
                 </p>
               ) : null}
-              <dl className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+              <dl className="grid grid-cols-2 gap-3 sm:grid-cols-5">
                 {DIMS.map((d) => {
                   const v = run.scores?.[d];
                   return (
-                    <div key={d} className="rounded-md border border-zinc-200 p-2 text-center dark:border-zinc-800">
-                      <dt className="text-[11px] uppercase text-zinc-500">{d}</dt>
-                      <dd className={`text-lg font-semibold ${v !== undefined && v <= 2 ? "text-red-600 dark:text-red-400" : ""}`}>{v ?? "–"}</dd>
+                    <div key={d} className="metric-card text-center">
+                      <dt className="text-[11px] font-semibold text-[#64716b]">{labelFromMap(t.labels.dimensions, d)}</dt>
+                      <dd className={`mt-1 text-2xl font-semibold tabular-nums ${v !== undefined && v <= 2 ? "text-[#c0263d]" : ""}`}>{v ?? "–"}</dd>
                     </div>
                   );
                 })}
               </dl>
               {weak.length > 0 ? (
-                <div>
-                  <h3 className="text-sm font-medium">Why the weak dimensions scored low</h3>
-                  <ul className="mt-1 flex flex-col gap-1 text-sm text-zinc-600 dark:text-zinc-400">
+                <div className="rounded-lg border border-[#f1d6dc] bg-[#fff7f8] p-4">
+                  <h3 className="text-sm font-medium">{t.practice.weakReasons}</h3>
+                  <ul className="mt-2 flex flex-col gap-1 text-sm muted">
                     {weak.map((w) => (
-                      <li key={w.dimension}><span className="font-medium text-red-600 dark:text-red-400">{w.dimension} · {w.score}/5</span>{w.reason ? ` — ${w.reason}` : ""}</li>
+                      <li key={w.dimension}><span className="font-semibold text-[#c0263d]">{labelFromMap(t.labels.dimensions, w.dimension)} · {w.score}/5</span>{w.reason ? ` - ${w.reason}` : ""}</li>
                     ))}
                   </ul>
                 </div>
               ) : null}
-              {run.diagnosis ? <Field label="Diagnosis">{run.diagnosis}</Field> : null}
-              {run.rewrite ? <Field label="Suggested rewrite">{run.rewrite}</Field> : null}
+              {run.diagnosis ? <Field label={t.practice.diagnosis}>{run.diagnosis}</Field> : null}
+              {run.rewrite ? <Field label={t.practice.rewrite}>{run.rewrite}</Field> : null}
               {run.followUps && run.followUps.length > 0 ? (
                 <div>
-                  <h3 className="text-sm font-medium">Follow-up questions</h3>
+                  <h3 className="text-sm font-medium">{t.practice.followUps}</h3>
                   <ul className="mt-1 list-disc pl-5 text-sm text-zinc-600 dark:text-zinc-400">
                     {run.followUps.map((f, i) => <li key={i}>{f}</li>)}
                   </ul>
@@ -96,7 +100,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   return (
     <div>
       <h3 className="text-sm font-medium">{label}</h3>
-      <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">{children}</p>
+      <p className="mt-1 text-sm muted">{children}</p>
     </div>
   );
 }

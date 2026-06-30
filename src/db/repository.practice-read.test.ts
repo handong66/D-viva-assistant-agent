@@ -46,6 +46,7 @@ describe("practice reads", () => {
     const items = getReviewItems(db, "t1");
     expect(items.map((i) => i.dimension)).toEqual(["evidence", "clarity"]); // open AND score<=2; 'ri3' fixed + 'ri4' score 3 are excluded
     expect(items[0]).toMatchObject({ dimension: "evidence", score: 1, reason: "unsupported", question: "Why 81.3%?" });
+    expect(getReviewItems(db, "t1", 1).map((i) => i.dimension)).toEqual(["evidence"]);
     db.close();
   });
 });

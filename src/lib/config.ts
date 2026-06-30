@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { normalizeUiLocale, type UiLocale } from "./ui-copy";
 
 const EnvSchema = z.object({
   VIVA_AI_ENABLED: z.enum(["true", "false"]).default("false"),
@@ -12,6 +13,7 @@ const EnvSchema = z.object({
   GOOGLE_STT_API_KEY: z.string().optional(),
   VIVA_DB_PATH: z.string().default("./data/d-viva-assistant-agent.sqlite"),
   RUN_LIVE_AI: z.string().optional(),
+  DVA_UI_LOCALE: z.enum(["en", "zh-CN"]).default("en"),
 });
 
 export type Config = {
@@ -23,6 +25,7 @@ export type Config = {
   sttConfigured: boolean;
   dbPath: string;
   runLiveAi: boolean;
+  uiLocale: UiLocale;
 };
 
 // Pure: every field derives from the injected `env` (getConfig passes process.env).
@@ -47,6 +50,7 @@ export function loadConfig(env: Record<string, string | undefined>): Config {
     sttConfigured: parsed.STT_PROVIDER === "google_cloud" && Boolean(parsed.GOOGLE_STT_API_KEY),
     dbPath: parsed.VIVA_DB_PATH,
     runLiveAi: parsed.RUN_LIVE_AI === "1",
+    uiLocale: normalizeUiLocale(parsed.DVA_UI_LOCALE),
   };
 }
 

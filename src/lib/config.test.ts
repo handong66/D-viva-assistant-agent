@@ -22,12 +22,18 @@ describe("loadConfig", () => {
     expect(c.effectiveAiEnabled).toBe(false);
   });
 
-  it("defaults AI off, sttProvider to off, and dbPath to ./data/d-viva-assistant-agent.sqlite", () => {
+  it("defaults AI off, sttProvider to off, dbPath to ./data/d-viva-assistant-agent.sqlite, and UI locale to English", () => {
     const c = loadConfig({});
     expect(c.aiFlag).toBe(false);
     expect(c.effectiveAiEnabled).toBe(false);
     expect(c.sttProvider).toBe("off");
     expect(c.dbPath).toBe("./data/d-viva-assistant-agent.sqlite");
+    expect(c.uiLocale).toBe("en");
+  });
+
+  it("supports a Chinese UI locale for localized screenshots and demos", () => {
+    const c = loadConfig({ DVA_UI_LOCALE: "zh-CN" });
+    expect(c.uiLocale).toBe("zh-CN");
   });
 
   it("does NOT enable AI when only GOOGLE_VERTEX_PROJECT is set (project id is not a credential)", () => {

@@ -16,7 +16,9 @@ Last verified from the local repository on 2026-06-30.
 ## Implemented
 
 - **Foundation:** Next.js App Router, TypeScript, Tailwind CSS, Vitest, local `better-sqlite3`, embedded migrations, WAL/foreign-key setup, and a unified repository layer.
-- **Config:** `.env.example` covers AI, STT, DB, recordings, and live-test gates. Most runtime config is parsed in `src/lib/config.ts`; `RECORDINGS_DIR` is resolved in `src/lib/stt/path.ts`.
+- **Config:** `.env.example` covers AI, STT, DB, recordings, UI locale, and live-test gates. Most runtime config is parsed in `src/lib/config.ts`; `RECORDINGS_DIR` is resolved in `src/lib/stt/path.ts`.
+- **Bilingual UI and docs:** user-facing navigation and main workflows support `DVA_UI_LOCALE=en` and `DVA_UI_LOCALE=zh-CN` through `src/lib/ui-copy.ts`; README docs are split into English and Simplified Chinese with matching language screenshots.
+- **Visual shell:** the app uses a redesigned research-workspace UI with a left navigation rail, local/privacy status area, command strip, compact panels, timeline rows, status badges, and responsive mobile navigation.
 - **LLM boundary:** all model calls go through `src/lib/llm`; role-to-model resolution is environment-driven; tests use mock clients by default.
 - **Import:** `/import` accepts Markdown, plain text, and PDF. Ingest creates chunks and evidence units from source text.
 - **Evidence:** `evidence_unit` is ingest-only source evidence; prep items and practice runs bind through relational join tables; FTS5 is synced by triggers.
@@ -82,5 +84,6 @@ Update documentation in the same change when touching:
 - `.env.example` or `src/lib/config.ts`: sync the environment section in README.
 - `src/lib/llm/*`: sync AI boundary and privacy notes.
 - `src/lib/stt/*` or recording actions: sync STT/privacy notes.
+- `src/lib/ui-copy.ts` or route copy: sync English/Chinese README wording and screenshot language.
 - `src/app/*` user flows: sync README product flow and this status file when the user-facing state changes.
 - `electron/` or `scripts/pack-electron.mjs`: sync README desktop packaging notes.

@@ -1,36 +1,33 @@
 import Link from "next/link";
 import { getActiveThesis, getPrepItems, type PrepItemRow } from "../../db/repository";
 import { appContext } from "../../lib/server/context";
+import { getUiCopy, labelFromMap, type UiLocale } from "../../lib/ui-copy";
 import GenerateButton from "./generate-button";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const statusBadge: Record<string, string> = {
-  verified: "bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300",
-  needs_review: "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300",
-  unsafe: "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300",
-  draft: "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300",
+  verified: "badge-green",
+  needs_review: "badge-amber",
+  unsafe: "badge-red",
+  draft: "badge-zinc",
 };
 
-const SUPPORT_LABEL: Record<string, string> = { numeric: "number", exact_quote: "quote", existence: "", llm_suggested: "" };
-
 export default async function MaterialsPage() {
-  const { db } = await appContext();
+  const { db, config } = await appContext();
+  const t = getUiCopy(config.uiLocale);
   const thesis = getActiveThesis(db);
 
   if (!thesis) {
     return (
-      <div className="flex flex-col items-start gap-4">
-        <h1 className="text-2xl font-semibold">Materials</h1>
-        <p className="max-w-xl text-zinc-600 dark:text-zinc-400">
-          No active thesis. Please import a thesis first.
+      <div className="panel panel-pad flex max-w-2xl flex-col items-start gap-4">
+        <h1 className="page-title">{t.materials.title}</h1>
+        <p className="max-w-xl muted">
+          {t.common.noActiveThesis}
         </p>
-        <Link
-          href="/import"
-          className="rounded-md bg-zinc-950 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-zinc-50 dark:text-zinc-950 dark:hover:bg-zinc-200"
-        >
-          Import a thesis
+        <Link href="/import" className="btn-primary">
+          {t.common.importThesis}
         </Link>
       </div>
     );
@@ -42,20 +39,20 @@ export default async function MaterialsPage() {
     <section className="flex flex-col gap-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold">Materials</h1>
-          <p className="mt-1 text-zinc-600 dark:text-zinc-400">{thesis.title}</p>
+          <h1 className="page-title">{t.materials.title}</h1>
+          <p className="mt-2 text-sm muted">{thesis.title}</p>
         </div>
-        <GenerateButton />
+        <GenerateButton locale={config.uiLocale} />
       </div>
 
       {items.length === 0 ? (
-        <p className="text-zinc-600 dark:text-zinc-400">
-          No prep items yet. Click Generate Prep Pack to create your study materials.
+        <p className="panel panel-pad muted">
+          {t.materials.empty}
         </p>
       ) : (
-        <ul className="flex flex-col gap-3">
+        <ul className="panel divide-y divide-[#e4ebe8]">
           {items.map((item) => (
-            <PrepItem key={item.id} item={item} />
+            <PrepItem key={item.id} item={item} locale={config.uiLocale} />
           ))}
         </ul>
       )}
@@ -63,35 +60,39 @@ export default async function MaterialsPage() {
   );
 }
 
-function PrepItem({ item }: { item: PrepItemRow }) {
-  const basis = SUPPORT_LABEL[item.supportKind ?? ""] ?? "";
+function PrepItem({ item, locale }: { item: PrepItemRow; locale: UiLocale }) {
+  const t = getUiCopy(locale);
+  const basis = labelFromMap(t.labels.support, item.supportKind ?? "");
   const supportValue = truncateSupportValue(item.supportValue);
+  const statusLabel = labelFromMap(t.labels.statuses, item.status);
 
   return (
-    <li className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
-      <div className="flex flex-wrap items-center justify-between gap-2">
+    <li className="grid gap-3 px-5 py-4 sm:grid-cols-[1fr_auto] sm:items-start">
+      <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs font-medium uppercase text-zinc-500">
-            {item.type.replaceAll("_", " ")}
+          <span className="section-kicker normal-case">
+            {labelFromMap(t.labels.itemTypes, item.type)}
           </span>
-          <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${statusBadge[item.status] ?? statusBadge.draft}`}>
-            {item.status === "verified" && basis ? `verified · ${basis}` : item.status.replaceAll("_", " ")}
+          <span className={`badge ${statusBadge[item.status] ?? statusBadge.draft}`}>
+            {item.status === "verified" && basis ? `${statusLabel} · ${basis}` : statusLabel}
           </span>
         </div>
+        <h2 className="mt-2 text-base font-semibold">{item.title}</h2>
+        {item.claimText ? <p className="mt-1 max-w-3xl text-sm muted">{item.claimText}</p> : null}
+        {item.status === "verified" && (item.type === "key_number" || item.type === "citation_card") ? (
+          <p className="mt-2 max-w-3xl text-xs italic muted">
+            {t.materials.verifiedNote(basis, supportValue)}
+          </p>
+        ) : null}
+      </div>
+      <div className="flex justify-start sm:justify-end">
         <Link
           href={`/materials/${item.id}/edit`}
-          className="rounded-md border border-zinc-300 px-2 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+          className="btn-secondary min-h-0 px-3 py-1.5 text-xs"
         >
-          Edit
+          {t.materials.edit}
         </Link>
       </div>
-      <h2 className="mt-2 font-semibold">{item.title}</h2>
-      {item.claimText ? <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">{item.claimText}</p> : null}
-      {item.status === "verified" && (item.type === "key_number" || item.type === "citation_card") ? (
-        <p className="mt-1 text-xs italic text-zinc-500 dark:text-zinc-400">
-          Verified: the {basis || "evidence"}{supportValue ? ` (${supportValue})` : ""} is grounded in your thesis. The surrounding wording is AI-generated.
-        </p>
-      ) : null}
     </li>
   );
 }
