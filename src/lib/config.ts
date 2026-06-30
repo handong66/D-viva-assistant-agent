@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 const EnvSchema = z.object({
-  VIVA_AI_ENABLED: z.enum(["true", "false"]).default("true"),
+  VIVA_AI_ENABLED: z.enum(["true", "false"]).default("false"),
   AI_GATEWAY_API_KEY: z.string().optional(),
   GOOGLE_GENERATIVE_AI_API_KEY: z.string().optional(),
   ANTHROPIC_API_KEY: z.string().optional(),

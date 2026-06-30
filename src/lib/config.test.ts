@@ -22,8 +22,10 @@ describe("loadConfig", () => {
     expect(c.effectiveAiEnabled).toBe(false);
   });
 
-  it("defaults sttProvider to off and dbPath to ./data/d-viva-assistant-agent.sqlite", () => {
+  it("defaults AI off, sttProvider to off, and dbPath to ./data/d-viva-assistant-agent.sqlite", () => {
     const c = loadConfig({});
+    expect(c.aiFlag).toBe(false);
+    expect(c.effectiveAiEnabled).toBe(false);
     expect(c.sttProvider).toBe("off");
     expect(c.dbPath).toBe("./data/d-viva-assistant-agent.sqlite");
   });
