@@ -11,14 +11,18 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "check": "npm run typecheck && npm run lint && npm test",
-    "electron:pack": "node scripts/pack-electron.mjs"
+    "electron:pack": "node scripts/pack-electron.mjs",
+    "electron:pack:mac:arm64": "node scripts/pack-electron.mjs --arch arm64",
+    "electron:pack:mac:x64": "node scripts/pack-electron.mjs --arch x64",
+    "electron:pack:mac:universal": "node scripts/pack-electron.mjs --arch universal"
   },
   "build": {
     "appId": "com.handong66.dvivaassistantagent",
     "productName": "D-viva-assistant-agent",
     "files": [
       "electron/**",
-      "package.json"
+      "package.json",
+      "!node_modules/**"
     ],
     "extraResources": [
       {

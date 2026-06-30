@@ -1,0 +1,196 @@
+name: Release Desktop App
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to release, for example v0.1.1"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+env:
+  APP_NAME: D-viva-assistant-agent
+  RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  validate:
+    name: Validate Source
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout release ref
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run checks
+        run: npm run check
+
+  build-macos:
+    name: Build macOS ${{ matrix.arch }}
+    needs: validate
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: arm64
+            runner: macos-15
+            output_dir: dist-electron/mac-arm64
+          - arch: x64
+            runner: macos-15-intel
+            output_dir: dist-electron/mac
+          - arch: universal
+            runner: macos-15
+            output_dir: dist-electron/mac-universal
+
+    steps:
+      - name: Checkout release ref
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Cache Electron downloads
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/Library/Caches/electron
+            ~/Library/Caches/electron-builder
+            ~/.cache/electron
+            ~/.cache/electron-builder
+          key: ${{ runner.os }}-${{ runner.arch }}-electron-${{ hashFiles('package-lock.json') }}
+
+      - name: Build Electron app
+        run: npm run electron:pack -- --arch "${{ matrix.arch }}"
+
+      - name: Verify packaged native module
+        run: |
+          app_path="$(find "${{ matrix.output_dir }}" -maxdepth 1 -type d -name '*.app' -print -quit)"
+          if [[ -z "$app_path" ]]; then
+            echo "No .app found in ${{ matrix.output_dir }}" >&2
+            exit 1
+          fi
+
+          node_file="$(find "$app_path/Contents/Resources/standalone/node_modules/better-sqlite3" -name 'better_sqlite3.node' -print -quit)"
+          if [[ -z "$node_file" ]]; then
+            echo "better_sqlite3.node not found in packaged app" >&2
+            exit 1
+          fi
+
+          file "$node_file"
+          if [[ "${{ matrix.arch }}" == "universal" ]]; then
+            lipo -archs "$node_file" | grep -q "x86_64"
+            lipo -archs "$node_file" | grep -q "arm64"
+          elif [[ "${{ matrix.arch }}" == "x64" ]]; then
+            file "$node_file" | grep -q "x86_64"
+          else
+            file "$node_file" | grep -q "arm64"
+          fi
+
+      - name: Smoke test packaged server
+        run: |
+          app_path="$(find "${{ matrix.output_dir }}" -maxdepth 1 -type d -name '*.app' -print -quit)"
+          app_bin="$app_path/Contents/MacOS/${APP_NAME}"
+          server_entry="$app_path/Contents/Resources/standalone/server.js"
+          data_dir="$(mktemp -d)"
+          port=48110
+          trap 'if [[ -n "${server_pid:-}" ]]; then kill "$server_pid" >/dev/null 2>&1 || true; wait "$server_pid" >/dev/null 2>&1 || true; fi; rm -rf "$data_dir"' EXIT
+
+          ELECTRON_RUN_AS_NODE=1 \
+          NODE_ENV=production \
+          PORT="$port" \
+          HOSTNAME=127.0.0.1 \
+          VIVA_DB_PATH="$data_dir/app.sqlite" \
+          RECORDINGS_DIR="$data_dir/recordings" \
+            "$app_bin" "$server_entry" >"$data_dir/server.log" 2>&1 &
+          server_pid=$!
+
+          for _ in {1..80}; do
+            if curl -fsS "http://127.0.0.1:$port/" >/dev/null 2>&1; then
+              echo "Packaged server smoke test passed for ${{ matrix.arch }}"
+              exit 0
+            fi
+
+            if ! kill -0 "$server_pid" >/dev/null 2>&1; then
+              cat "$data_dir/server.log" >&2 || true
+              exit 1
+            fi
+
+            sleep 0.25
+          done
+
+          cat "$data_dir/server.log" >&2 || true
+          exit 1
+
+      - name: Archive app
+        run: |
+          app_path="$(find "${{ matrix.output_dir }}" -maxdepth 1 -type d -name '*.app' -print -quit)"
+          asset_name="${APP_NAME}-${RELEASE_TAG}-mac-${{ matrix.arch }}"
+          ditto -c -k --sequesterRsrc --keepParent "$app_path" "${asset_name}.zip"
+          shasum -a 256 "${asset_name}.zip" > "${asset_name}.zip.sha256"
+          mkdir -p release-assets
+          mv "${asset_name}.zip" "${asset_name}.zip.sha256" release-assets/
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mac-${{ matrix.arch }}
+          path: release-assets/*
+          if-no-files-found: error
+
+  publish:
+    name: Publish GitHub Release
+    needs: build-macos
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download release artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          merge-multiple: true
+
+      - name: Show release assets
+        run: ls -lh release-assets
+
+      - name: Create or update release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            echo "Release $RELEASE_TAG already exists; uploading assets with --clobber."
+          else
+            gh release create "$RELEASE_TAG" \
+              --verify-tag \
+              --title "$RELEASE_TAG" \
+              --notes "Automated macOS desktop release for $RELEASE_TAG."
+          fi
+
+          gh release upload "$RELEASE_TAG" release-assets/* --clobber

@@ -31,7 +31,8 @@ Last verified from the local repository on 2026-06-30.
 - **Review:** `/review` shows open low-score dimensions for targeted practice.
 - **Training plan:** `/plan` saves AI-generated plans when AI is ready and static N-day plans when AI is disabled or generation fails.
 - **STT:** typed answers, browser speech recognition, and Google Cloud STT are supported behind `STT_PROVIDER`.
-- **Desktop:** `npm run electron:pack` builds an unsigned macOS `.app` that starts the packaged Next server locally and stores app data under Electron `userData`.
+- **Desktop:** `npm run electron:pack` builds an unsigned macOS `.app` that starts the packaged Next server locally and stores app data under Electron `userData`. Explicit scripts support macOS `arm64`, `x64`, and `universal` builds.
+- **Release automation:** `.github/workflows/release.yml` validates the source, builds macOS `arm64`, `x64`, and `universal` release assets for tag builds, generates `.sha256` files, and publishes them to GitHub Releases.
 
 ## Current Boundaries
 
@@ -40,7 +41,7 @@ Last verified from the local repository on 2026-06-30.
 - Browser STT uses the browser vendor's speech recognition stack; Google Cloud STT sends recorded audio to Google after writing it locally.
 - Google Cloud STT uses synchronous recognition and is not the path for long answers.
 - PDF extraction can be imperfect; Markdown/plain text remains the reliable import fallback.
-- Electron packaging is macOS-focused and unsigned.
+- Electron packaging is macOS-focused and unsigned. The release workflow publishes Apple Silicon, Intel, and universal macOS assets for new release tags; older releases may have fewer assets.
 - The design spec still contains some forward-looking implementation notes; use code plus README for the current runtime snapshot.
 - Existing local data from the prior project identity is not migrated automatically; preserve it by manually copying or renaming the old SQLite file into `./data/d-viva-assistant-agent.sqlite`.
 - Prior Electron data may be under `~/Library/Application Support/viva-assistant/` or `~/Library/Application Support/Viva Assistant/`; README documents manual copy/rename steps for the SQLite file, WAL/SHM sidecars, and optional recordings directory.
@@ -72,6 +73,9 @@ Run this only for desktop packaging work:
 
 ```bash
 npm run electron:pack
+npm run electron:pack:mac:arm64
+npm run electron:pack:mac:x64
+npm run electron:pack:mac:universal
 ```
 
 Tests should not call real AI or STT by default. Live AI checks require `RUN_LIVE_AI=1` and public sample content.

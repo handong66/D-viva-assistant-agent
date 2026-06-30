@@ -10,7 +10,7 @@ D-viva-assistant-agent 可以把论文整理成可追溯的备考材料，帮助
 
 可以从 [GitHub Releases](https://github.com/handong66/D-viva-assistant-agent/releases/latest) 下载最新打包好的 macOS 应用。
 
-当前发布的桌面资产面向 macOS arm64。应用未签名，因此第一次启动时 macOS 可能要求你右键选择 Open。如果你希望本地自行打包，可以按下面的源码方式安装依赖，然后运行 `npm run electron:pack`。
+新的 release tag 会自动构建 macOS Apple Silicon（`arm64`）、Intel（`x64`）和 universal macOS 包；旧版本 release 可能只有部分资产。应用未签名，因此第一次启动时 macOS 可能要求你右键选择 Open。如果你希望本地自行打包，可以按下面的源码方式安装依赖，然后运行 `npm run electron:pack`。
 
 ## 你可以用它做什么
 
@@ -215,13 +215,16 @@ RECORDINGS_DIR=/absolute/path/to/recordings
 
 多数用户可以直接从 [GitHub Releases](https://github.com/handong66/D-viva-assistant-agent/releases/latest) 下载最新 macOS 包。
 
-开发者也可以打包一个未签名的本地 macOS 应用：
+开发者也可以打包未签名的本地 macOS 应用：
 
 ```bash
 npm run electron:pack
+npm run electron:pack:mac:arm64
+npm run electron:pack:mac:x64
+npm run electron:pack:mac:universal
 ```
 
-本地生成结果位于 `dist-electron/`。由于应用未签名，第一次打开时 macOS 可能要求你右键选择 Open。
+`npm run electron:pack` 默认使用当前机器架构。显式脚本会分别生成 Apple Silicon、Intel 或 universal 构建，结果位于 `dist-electron/`。由于应用未签名，第一次打开时 macOS 可能要求你右键选择 Open。
 
 Electron 数据通常保存在：
 
@@ -257,5 +260,14 @@ npm run build
 ```bash
 npm run electron:pack
 ```
+
+打 tag 后，GitHub Actions 会自动打包 release：
+
+```bash
+git tag vX.Y.Z
+git push origin vX.Y.Z
+```
+
+release workflow 也可以对已有 tag 手动运行。它会发布 macOS `arm64`、`x64` 和 `universal` zip 文件，以及对应 `.sha256` 校验文件。
 
 不要提交 secret、私有论文数据、本地数据库、录音、`.env*` 文件、`.next/` 或 `dist-electron/`。

@@ -10,7 +10,7 @@ Languages: English | [简体中文](README.zh-CN.md)
 
 Download the latest packaged macOS app from [GitHub Releases](https://github.com/handong66/D-viva-assistant-agent/releases/latest).
 
-The current published desktop asset is built for macOS arm64. It is unsigned, so macOS may require right-clicking the app and choosing Open the first time you launch it. If you prefer to build locally, use the source setup below and run `npm run electron:pack`.
+New release tags are built for macOS Apple Silicon (`arm64`), Intel (`x64`), and universal macOS. Older releases may have fewer assets. The app is unsigned, so macOS may require right-clicking the app and choosing Open the first time you launch it. If you prefer to build locally, use the source setup below and run `npm run electron:pack`.
 
 ## What You Can Do
 
@@ -215,13 +215,16 @@ Long recordings are better handled through browser speech recognition. The Googl
 
 For most users, the simplest option is to download the latest macOS package from [GitHub Releases](https://github.com/handong66/D-viva-assistant-agent/releases/latest).
 
-Developers can also package an unsigned local macOS app:
+Developers can also package unsigned local macOS apps:
 
 ```bash
 npm run electron:pack
+npm run electron:pack:mac:arm64
+npm run electron:pack:mac:x64
+npm run electron:pack:mac:universal
 ```
 
-The local app is created under `dist-electron/`. Because it is unsigned, macOS may require right-clicking the app and choosing Open on first launch.
+`npm run electron:pack` defaults to the current machine architecture. The explicit scripts create Apple Silicon, Intel, or universal builds under `dist-electron/`. Because the app is unsigned, macOS may require right-clicking the app and choosing Open on first launch.
 
 Electron data is normally stored under:
 
@@ -257,5 +260,14 @@ Run Electron packaging checks when changing desktop behavior:
 ```bash
 npm run electron:pack
 ```
+
+Tagged releases are packaged automatically by GitHub Actions:
+
+```bash
+git tag vX.Y.Z
+git push origin vX.Y.Z
+```
+
+The release workflow can also be run manually for an existing tag. It publishes macOS `arm64`, `x64`, and `universal` zip files plus `.sha256` checksums.
 
 Do not commit secrets, private thesis data, local databases, recordings, `.env*` files, `.next/`, or `dist-electron/`.
