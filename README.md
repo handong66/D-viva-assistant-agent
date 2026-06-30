@@ -1,179 +1,179 @@
 # D-viva-assistant-agent
 
-A local-first viva preparation workspace for thesis defence.
+一个本地优先的论文 viva 答辩准备工作台。
 
-D-viva-assistant-agent helps you turn a thesis into evidence-aware study material, practise with an AI examiner, score answers across viva-relevant dimensions, and keep a focused review queue. It is designed for candidates who want structured preparation without putting their whole thesis into a hosted web app.
+D-viva-assistant-agent 可以把论文整理成可追溯的备考材料，帮助你和 AI 考官模拟答辩，用多个维度评估回答，并把薄弱点沉淀到复盘队列。它面向希望系统备考、但又不想把整篇论文放进托管网页应用的用户。
 
-Languages: English | [简体中文](README.zh-CN.md)
+语言：简体中文 | [English](README.en.md)
 
-## Download The Latest Release
+## 下载最新版
 
-Download the latest packaged macOS app from [GitHub Releases](https://github.com/handong66/D-viva-assistant-agent/releases/latest).
+可以从 [GitHub Releases](https://github.com/handong66/D-viva-assistant-agent/releases/latest) 下载最新打包好的 macOS 应用。
 
-New release tags are built for macOS Apple Silicon (`arm64`), Intel (`x64`), and universal macOS. Older releases may have fewer assets. The app is unsigned, so macOS may require right-clicking the app and choosing Open the first time you launch it. If you prefer to build locally, use the source setup below and run `npm run electron:pack`.
+新的 release tag 会自动构建 macOS Apple Silicon（`arm64`）、Intel（`x64`）和 universal macOS 包；旧版本 release 可能只有部分资产。应用未签名，因此第一次启动时 macOS 可能要求你右键选择 Open。如果你希望本地自行打包，可以按下面的源码方式安装依赖，然后运行 `npm run electron:pack`。
 
-## What You Can Do
+## 你可以用它做什么
 
-- Import a thesis from PDF, Markdown, or plain text.
-- Keep a local library, dashboard, review state, and static training plan without configuring AI.
-- With AI configured, build prep cards for summaries, key numbers, likely questions, hostile questions, theory cards, and citation cards.
-- With AI configured, practise viva answers against questions grounded in your own thesis evidence.
-- With AI configured, score answers on evidence, clarity, completeness, boundary control, and delivery.
-- Review weak spots instead of rereading everything.
-- Keep the default workflow local, with AI and speech-to-text enabled only when you configure them.
+- 从 PDF、Markdown 或纯文本导入论文。
+- 不配置 AI 时，也可以使用本地资料库、首页、复盘状态和静态训练计划。
+- 配置 AI 后，生成摘要、关键数字、常见问答、刁钻问题、理论卡和引用卡。
+- 配置 AI 后，基于论文证据练习 viva 问答。
+- 配置 AI 后，按证据、清晰度、完整性、边界控制和表达五个维度给回答评分。
+- 把低分维度放入复盘队列，集中处理真正薄弱的地方。
+- 默认保持本地工作流；只有在你配置并触发 AI 或语音转文字功能时，才会调用外部服务。
 
-## Who It Is For
+## 适合谁
 
-D-viva-assistant-agent is useful if you are:
+D-viva-assistant-agent 适合：
 
-- preparing for a PhD, MPhil, master's, or undergraduate thesis viva;
-- supervising a student and want a local practice workflow;
-- turning a thesis into a repeatable question-and-answer revision plan;
-- checking whether claims, numbers, and quotes in prep material trace back to the thesis.
+- 正在准备 PhD、MPhil、硕士或本科毕业论文 viva 的学生；
+- 希望给学生搭建本地练习流程的导师；
+- 想把论文转成可重复复习的问答和训练计划的人；
+- 想检查备考材料中的数字、引文和关键断言是否能追溯回论文的人。
 
-It is not a replacement for your supervisor, examiner feedback, university rules, or your own judgement.
+它不能替代导师建议、考官反馈、学校要求或你自己的判断。
 
-## Typical Workflow
+## 典型使用流程
 
-1. Import your thesis from PDF, Markdown, or plain text.
-2. Use the dashboard and a static plan immediately, or configure AI for generated prep cards.
-3. Review evidence-aware prep cards and edit anything that needs correction.
-4. Practise with examiner-style questions grounded in your thesis when AI is enabled.
-5. Read the score breakdown, diagnosis, rewrite suggestion, and follow-up questions.
-6. Use the review queue to revisit weak evidence, boundary, completeness, clarity, or delivery points.
-7. Keep a short daily plan so preparation stays focused.
+1. 从 PDF、Markdown 或纯文本导入论文。
+2. 先使用首页和本地静态计划；如果需要生成材料，再配置 AI。
+3. 查看证据感知备考卡片，并手动修正需要调整的内容。
+4. 配置 AI 后，用基于论文证据的考官式问题进行练习。
+5. 查看评分拆解、诊断、建议改写和追问。
+6. 用复盘队列集中处理证据、边界、完整性、清晰度或表达方面的薄弱点。
+7. 保留一个简短每日计划，让备考节奏更稳定。
 
-## Screenshots
+## 截图
 
-The screenshots below were captured from the real app running locally with a synthetic demo thesis. They do not contain private user data.
+以下截图来自实际本地运行的应用，使用合成演示论文数据，不包含用户私有内容。
 
-### Daily Dashboard
+### 今日面板
 
-The dashboard shows the active thesis, recommended next action, today's plan, review queue, material status, and quick actions.
+首页展示当前论文、建议下一步、今日计划、复盘队列、材料状态和快捷操作。
 
-![Dashboard showing an active demo thesis, today's plan, and review counters](docs/assets/screenshots/en/dashboard.png)
+![中文首页截图，展示当前论文、今日计划和复盘统计](docs/assets/screenshots/zh-CN/dashboard.png)
 
-### Prep Materials
+### 备考材料
 
-Prep cards are grouped by status, so you can separate verified facts from draft or needs-review material.
+备考卡片按状态展示，帮助你区分已验证事实、待复核材料和草稿。
 
-![Materials page showing verified and needs-review prep cards](docs/assets/screenshots/en/materials.png)
+![中文材料页截图，展示已验证和待复核的备考卡片](docs/assets/screenshots/zh-CN/materials.png)
 
-### Practice And Feedback
+### 练习与反馈
 
-Generate examiner-style questions, answer them, then review scores, weak-dimension reasons, diagnosis, suggested rewrite, and follow-ups.
+生成考官式问题，输入或转写回答，然后查看评分、低分原因、诊断、建议改写和追问。
 
-![Practice page showing a hostile question, answer scores, diagnosis, rewrite, and follow-ups](docs/assets/screenshots/en/practice.png)
+![中文练习页截图，展示刁钻问题、回答评分、诊断、改写和追问](docs/assets/screenshots/zh-CN/practice.png)
 
-### Review Queue
+### 复盘队列
 
-Low-scoring dimensions are saved into a queue, making follow-up practice concrete.
+低分维度会进入复盘队列，让后续练习更具体。
 
-![Review queue showing weak dimensions and reasons](docs/assets/screenshots/en/review.png)
+![中文复盘队列截图，展示薄弱维度和原因](docs/assets/screenshots/zh-CN/review.png)
 
-### Training Plan
+### 训练计划
 
-Use a static local plan when AI is off, or generate an AI-assisted plan after configuring a provider.
+AI 关闭时可以使用本地静态计划；配置 AI 后也可以生成 AI 辅助训练计划。
 
-![Training plan page showing a seven-day viva plan](docs/assets/screenshots/en/plan.png)
+![中文训练计划截图，展示七天 viva 计划](docs/assets/screenshots/zh-CN/plan.png)
 
-### Library, Privacy, And Accuracy
+### 资料库、隐私与准确性
 
-The library view shows active thesis data, AI/STT disclosure, and content accuracy counters.
+资料库页展示当前论文、AI/STT 披露和内容准确性统计。
 
-![Library page showing active thesis metadata, privacy disclosure, and accuracy stats](docs/assets/screenshots/en/library.png)
+![中文资料库截图，展示当前论文、隐私披露和准确性统计](docs/assets/screenshots/zh-CN/library.png)
 
-## Privacy And Data
+## 隐私与数据
 
-The app is local-first. Imported theses, generated material, practice runs, review items, recordings, and plans are stored on your machine by default.
+这个应用是本地优先的。默认情况下，导入的论文、生成的材料、练习记录、复盘项、录音和计划都保存在你的机器上。
 
-Default local paths:
+默认本地路径：
 
 ```text
-Web/dev database: ./data/d-viva-assistant-agent.sqlite
-Web/dev recordings: ./recordings
-Electron database: <Electron userData>/d-viva-assistant-agent.sqlite
-Electron recordings: <Electron userData>/recordings
+Web/开发数据库：./data/d-viva-assistant-agent.sqlite
+Web/开发录音：./recordings
+Electron 数据库：<Electron userData>/d-viva-assistant-agent.sqlite
+Electron 录音：<Electron userData>/recordings
 ```
 
-For web/dev runs, set `VIVA_DB_PATH=/absolute/path/to/d-viva-assistant-agent.sqlite` in `.env.local` if you want to keep the SQLite database somewhere else. The packaged Electron app uses the app-data path shown above.
+Web/开发模式下，如果想把 SQLite 数据库放在其他位置，可以在 `.env.local` 中设置 `VIVA_DB_PATH=/absolute/path/to/d-viva-assistant-agent.sqlite`。打包后的 Electron 应用使用上面列出的应用数据目录。
 
-AI and speech-to-text are optional. Nothing is sent to an AI or STT provider unless you configure that provider and trigger a feature that uses it.
+AI 和语音转文字都是可选功能。只有当你配置对应服务并主动触发相关功能时，才会发生外部调用。
 
-When AI is enabled, the app may send:
+启用 AI 后，应用可能会发送：
 
-- selected thesis evidence and thesis metadata for prep generation;
-- selected thesis evidence for examiner questions;
-- the question, selected evidence, and your typed or transcribed answer for scoring;
-- previous question and answer context for follow-up questions;
-- thesis title, section names, and progress summary for AI training plans.
+- 生成备考材料所需的部分论文证据和论文元数据；
+- 生成考官问题所需的部分论文证据；
+- 评分所需的问题、部分证据，以及你的手动回答或转写回答；
+- 生成追问时需要的上一题和上一轮回答上下文；
+- 生成 AI 训练计划所需的论文标题、章节名和简短进度摘要。
 
-When Google Cloud Speech-to-Text is enabled, recorded audio is saved locally and then sent to Google for transcription. Browser speech recognition uses the browser vendor's speech stack; no app-side STT key is required.
+启用 Google Cloud Speech-to-Text 时，录音会先保存在本地，再发送给 Google 转写。浏览器语音识别使用浏览器厂商的语音能力，不需要应用侧 STT key。
 
-## Accuracy Model
+## 准确性模型
 
-Generated text is not treated as fact by default. The source of truth is the thesis text you import.
+生成内容默认不等于事实。事实来源始终是你导入的论文文本。
 
-- Numbers and exact quotes must appear in bound thesis evidence before they can be marked verified.
-- Broader paraphrases and generated explanations remain needs review unless they can be checked deterministically.
-- You should still compare important material with the thesis, supervisor notes, and official requirements.
+- 数字和精确引文必须出现在绑定论文证据中，才会被标记为已验证。
+- 更宽泛的改写和解释如果不能确定性校验，会保持待复核状态。
+- 重要材料仍然需要和论文原文、导师建议以及学校要求交叉核对。
 
-The app is meant to make revision more evidence-aware, not to certify that an answer is academically correct.
+这个应用的目标是让复习更重视证据，而不是替你证明回答一定正确。
 
-## Quick Start
+## 快速开始
 
-Clone the repository:
+克隆仓库：
 
 ```bash
 git clone https://github.com/handong66/D-viva-assistant-agent.git
 cd D-viva-assistant-agent
 ```
 
-Install dependencies:
+安装依赖：
 
 ```bash
 npm install
 ```
 
-Create a local environment file:
+创建本地环境文件：
 
 ```bash
 cp .env.example .env.local
 ```
 
-Start the web app:
+启动 Web 应用：
 
 ```bash
 npm run dev
 ```
 
-Open:
+打开：
 
 ```text
 http://localhost:3000
 ```
 
-Then import a thesis from the Import page. Markdown or plain text usually gives cleaner results than a poor-quality PDF.
+然后从“导入”页面导入论文。如果 PDF 质量较差，Markdown 或纯文本通常更可靠。
 
-## Language
+## 界面语言
 
-The UI supports English and Simplified Chinese. English is the default in `.env.example`.
+界面支持英文和简体中文。`.env.example` 默认使用英文。
 
-To switch language, set `DVA_UI_LOCALE` in `.env.local`:
+在 `.env.local` 中设置：
 
 ```bash
 DVA_UI_LOCALE=zh-CN
-# or
+# 或
 DVA_UI_LOCALE=en
 ```
 
-Restart the app after changing the locale.
+修改语言后需要重启应用。
 
-## Optional AI Setup
+## 可选 AI 配置
 
-AI is off by default. Without AI, you can still import a thesis, store local data, view the dashboard, manage the library, keep review state, and generate a static training plan.
+AI 默认关闭。AI 关闭时，你仍然可以导入论文、保存本地数据、查看首页、管理资料库、保留复盘状态，并生成本地静态训练计划。
 
-To enable AI-assisted prep, questions, scoring, and plans, configure:
+如果要启用 AI 辅助备考材料、考官问题、评分和训练计划，配置：
 
 ```bash
 VIVA_AI_ENABLED=true
@@ -183,13 +183,13 @@ VIVA_MODEL_FAST=your-provider/your-fast-model
 AI_GATEWAY_API_KEY=your-key
 ```
 
-The `VIVA_*` variable names are intentionally kept for compatibility and because viva is the thesis-defence domain term.
+`VIVA_*` 环境变量名会保留，因为它们既用于兼容现有配置，也对应 viva 答辩这个领域词。
 
-Use public or non-sensitive sample material when testing a new provider setup.
+首次测试 provider 配置时，建议使用公开或非敏感样例内容。
 
-## Optional Speech-To-Text
+## 可选语音转文字
 
-Choose one mode:
+选择一种模式：
 
 ```bash
 STT_PROVIDER=off
@@ -197,25 +197,25 @@ STT_PROVIDER=browser
 STT_PROVIDER=google_cloud
 ```
 
-For Google Cloud Speech-to-Text:
+使用 Google Cloud Speech-to-Text 时：
 
 ```bash
 GOOGLE_STT_API_KEY=your-key
 ```
 
-By default, web/dev recordings go to `./recordings`; the packaged Electron app stores recordings under `<Electron userData>/recordings`. To store web/dev recordings somewhere else, set an absolute directory:
+默认情况下，Web/开发录音保存在 `./recordings`；打包后的 Electron 应用保存在 `<Electron userData>/recordings`。如果想把 Web/开发录音保存在其他位置，可以设置绝对路径：
 
 ```bash
 RECORDINGS_DIR=/absolute/path/to/recordings
 ```
 
-Long recordings are better handled through browser speech recognition. The Google path uses synchronous recognition and is intended for short answers.
+长录音更适合使用浏览器语音识别。Google 路径使用同步识别，更适合较短回答。
 
-## Desktop App For macOS
+## macOS 桌面应用
 
-For most users, the simplest option is to download the latest macOS package from [GitHub Releases](https://github.com/handong66/D-viva-assistant-agent/releases/latest).
+多数用户可以直接从 [GitHub Releases](https://github.com/handong66/D-viva-assistant-agent/releases/latest) 下载最新 macOS 包。
 
-Developers can also package unsigned local macOS apps:
+开发者也可以打包未签名的本地 macOS 应用：
 
 ```bash
 npm run electron:pack
@@ -224,50 +224,50 @@ npm run electron:pack:mac:x64
 npm run electron:pack:mac:universal
 ```
 
-`npm run electron:pack` defaults to the current machine architecture. The explicit scripts create Apple Silicon, Intel, or universal builds under `dist-electron/`. Because the app is unsigned, macOS may require right-clicking the app and choosing Open on first launch.
+`npm run electron:pack` 默认使用当前机器架构。显式脚本会分别生成 Apple Silicon、Intel 或 universal 构建，结果位于 `dist-electron/`。由于应用未签名，第一次打开时 macOS 可能要求你右键选择 Open。
 
-Electron data is normally stored under:
+Electron 数据通常保存在：
 
 ```text
 ~/Library/Application Support/D-viva-assistant-agent/
 ```
 
-Existing databases or recordings are not migrated automatically. If you are moving from an older pre-rename build, fully quit both old and new apps first.
+已有数据库或录音不会自动迁移。如果从更早的改名前构建迁移，请先完全退出新旧两个应用。
 
-For web/dev data, older builds may have used `./data/viva.sqlite`. Copy or rename it to `./data/d-viva-assistant-agent.sqlite`, and update `.env.local` if it still sets `VIVA_DB_PATH=./data/viva.sqlite`.
+Web/开发数据旧版可能使用 `./data/viva.sqlite`。可以复制或重命名为 `./data/d-viva-assistant-agent.sqlite`；如果 `.env.local` 里仍然写着 `VIVA_DB_PATH=./data/viva.sqlite`，也需要同步更新。
 
-For Electron data, older builds may have used `~/Library/Application Support/viva-assistant/` or `~/Library/Application Support/Viva Assistant/`. Copy `viva.sqlite`, plus `viva.sqlite-wal` and `viva.sqlite-shm` if present, into `~/Library/Application Support/D-viva-assistant-agent/` and rename them to `d-viva-assistant-agent.sqlite`, `d-viva-assistant-agent.sqlite-wal`, and `d-viva-assistant-agent.sqlite-shm`. Copy the old `recordings/` folder too if you need old recordings. Back up files before replacing anything.
+Electron 数据旧版可能位于 `~/Library/Application Support/viva-assistant/` 或 `~/Library/Application Support/Viva Assistant/`。把 `viva.sqlite` 以及可能存在的 `viva.sqlite-wal`、`viva.sqlite-shm` 复制到 `~/Library/Application Support/D-viva-assistant-agent/`，并分别改名为 `d-viva-assistant-agent.sqlite`、`d-viva-assistant-agent.sqlite-wal`、`d-viva-assistant-agent.sqlite-shm`。如果需要旧录音，也复制旧的 `recordings/` 文件夹。覆盖任何文件前，先备份原文件。
 
-## Current Limitations
+## 当前限制
 
-- Single-user local tool. It is not designed as a hosted multi-user service.
-- No account system, cloud sync, or shared workspace permissions.
-- PDF extraction quality depends on the original PDF. Use Markdown or plain text if the import looks messy.
-- AI output must be checked against your thesis and academic requirements.
-- The packaged macOS app is unsigned.
+- 这是本地单用户工具，不是托管多用户服务。
+- 没有账号系统、云同步或共享工作区权限。
+- PDF 抽取质量取决于原始 PDF；如果导入结果混乱，建议使用 Markdown 或纯文本。
+- AI 输出必须结合论文原文和学术要求自行核对。
+- 打包后的 macOS 应用未签名。
 
-## For Developers
+## 开发者说明
 
-Useful checks before changing code:
+修改代码前后常用检查：
 
 ```bash
 npm run check
 npm run build
 ```
 
-Run Electron packaging checks when changing desktop behavior:
+修改桌面行为时运行：
 
 ```bash
 npm run electron:pack
 ```
 
-Tagged releases are packaged automatically by GitHub Actions:
+打 tag 后，GitHub Actions 会自动打包 release：
 
 ```bash
 git tag vX.Y.Z
 git push origin vX.Y.Z
 ```
 
-The release workflow can also be run manually for an existing tag. It publishes macOS `arm64`, `x64`, and `universal` zip files plus `.sha256` checksums.
+release workflow 也可以对已有 tag 手动运行。它会发布 macOS `arm64`、`x64` 和 `universal` zip 文件，以及对应 `.sha256` 校验文件。
 
-Do not commit secrets, private thesis data, local databases, recordings, `.env*` files, `.next/`, or `dist-electron/`.
+不要提交 secret、私有论文数据、本地数据库、录音、`.env*` 文件、`.next/` 或 `dist-electron/`。
