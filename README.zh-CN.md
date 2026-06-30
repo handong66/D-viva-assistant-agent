@@ -6,6 +6,12 @@ D-viva-assistant-agent 可以把论文整理成可追溯的备考材料，帮助
 
 语言：[English](README.md) | 简体中文
 
+## 下载最新版
+
+可以从 [GitHub Releases](https://github.com/handong66/D-viva-assistant-agent/releases/latest) 下载最新打包好的 macOS 应用。
+
+当前发布的桌面资产面向 macOS arm64。应用未签名，因此第一次启动时 macOS 可能要求你右键选择 Open。如果你希望本地自行打包，可以按下面的源码方式安装依赖，然后运行 `npm run electron:pack`。
+
 ## 你可以用它做什么
 
 - 从 PDF、Markdown 或纯文本导入论文。
@@ -207,13 +213,15 @@ RECORDINGS_DIR=/absolute/path/to/recordings
 
 ## macOS 桌面应用
 
-可以打包一个未签名的本地 macOS 应用：
+多数用户可以直接从 [GitHub Releases](https://github.com/handong66/D-viva-assistant-agent/releases/latest) 下载最新 macOS 包。
+
+开发者也可以打包一个未签名的本地 macOS 应用：
 
 ```bash
 npm run electron:pack
 ```
 
-生成结果位于 `dist-electron/`。由于应用未签名，第一次打开时 macOS 可能要求你右键选择 Open。
+本地生成结果位于 `dist-electron/`。由于应用未签名，第一次打开时 macOS 可能要求你右键选择 Open。
 
 Electron 数据通常保存在：
 

@@ -6,6 +6,12 @@ D-viva-assistant-agent helps you turn a thesis into evidence-aware study materia
 
 Languages: English | [简体中文](README.zh-CN.md)
 
+## Download The Latest Release
+
+Download the latest packaged macOS app from [GitHub Releases](https://github.com/handong66/D-viva-assistant-agent/releases/latest).
+
+The current published desktop asset is built for macOS arm64. It is unsigned, so macOS may require right-clicking the app and choosing Open the first time you launch it. If you prefer to build locally, use the source setup below and run `npm run electron:pack`.
+
 ## What You Can Do
 
 - Import a thesis from PDF, Markdown, or plain text.
@@ -207,13 +213,15 @@ Long recordings are better handled through browser speech recognition. The Googl
 
 ## Desktop App For macOS
 
-You can package an unsigned local macOS app:
+For most users, the simplest option is to download the latest macOS package from [GitHub Releases](https://github.com/handong66/D-viva-assistant-agent/releases/latest).
+
+Developers can also package an unsigned local macOS app:
 
 ```bash
 npm run electron:pack
 ```
 
-The app is created under `dist-electron/`. Because it is unsigned, macOS may require right-clicking the app and choosing Open on first launch.
+The local app is created under `dist-electron/`. Because it is unsigned, macOS may require right-clicking the app and choosing Open on first launch.
 
 Electron data is normally stored under:
 
